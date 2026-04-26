@@ -8,6 +8,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Amiri:wght@400;700&display=swap"
         rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
@@ -3848,15 +3850,15 @@
     </div>
 
     <script>
-        // ============================================================ DATA ============================================================
+               // ============================================================ DATA ============================================================
         let db = { students: [], classes: [], groups: [], attendance: {}, fees: {}, exams: [], grades: {}, activities: [], notifications: [], settings: { defaultFee: 500, currency: 'جنيه', adminEmail: 'admin@gmail.com', adminPass: 'admin123', adminName: 'المشرف' } };
-        let editStuId = null, currentView = 'table', selStudents = new Set(), curProfId = null, scanStream = null, scanInt = null, attCache = {}, scanHistory = [];
+        let editStuId = null, currentView = 'table', selStudents = new Set(), curProfId = null, scanStream = null, scanInt = null, attCache = {}, scanHistory = [], html5QrCode = null;
         const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
-        window.onload = () => { loadDB(); setDefDates(); requestNotifPermission() };
-        function today() { return new Date().toISOString().split('T')[0] }
-        function nowStr() { return new Date().toLocaleString('ar-EG', { hour12: false }) }
-        function saveDB() { localStorage.setItem('csv4', JSON.stringify(db)) }
+        window.onload = () => { loadDB(); setDefDates(); requestNotifPermission(); renderAll(); };
+        function today() { return new Date().toISOString().split('T')[0]; }
+        function nowStr() { return new Date().toLocaleString('ar-EG', { hour12: false }); }
+        function saveDB() { localStorage.setItem('csv4', JSON.stringify(db)); }
         function loadDB() {
             const r = localStorage.getItem('csv4');
             if (r) { try { db = JSON.parse(r); if (!db.notifications) db.notifications = []; } catch (e) { } }
@@ -3865,7 +3867,7 @@
         }
         function setDefDates() {
             const t = today(), d = new Date();
-            ['att-d', 'ex-date', 'f-date'].forEach(id => { const el = document.getElementById(id); if (el) el.value = t });
+            ['att-d', 'ex-date', 'f-date'].forEach(id => { const el = document.getElementById(id); if (el) el.value = t; });
             const fm = document.getElementById('fee-m'), fy = document.getElementById('fee-y'), rm = document.getElementById('rep-month'), ry = document.getElementById('rep-year');
             if (fm) fm.value = d.getMonth() + 1; if (fy) fy.value = d.getFullYear();
             if (rm) rm.value = d.getMonth() + 1; if (ry) ry.value = d.getFullYear();
@@ -3877,14 +3879,12 @@
             saveDB();
         }
         function renderAll() {
-            popAllSelects(); renderDash(); filterStudents(); loadAtt(); loadFees(); loadGrades(); renderGroups(); updateNavBadge(); loadRec(); updateMsgOptions(); renderIDCards(); renderNotifPanel();
+            popAllSelects(); renderDash(); filterStudents(); loadAtt(); loadFees(); loadGrades(); renderGroups(); updateNavBadge(); loadRec(); updateMsgOptions(); renderIDCards(); renderNotifPanel(); renderAnalytics();
         }
 
         // ============================================================ NOTIFICATIONS ============================================================
         function requestNotifPermission() {
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
+            if ('Notification' in window && Notification.permission === 'default') { Notification.requestPermission(); }
         }
         function pushNotif(title, body, type = 'info') {
             if (!db.notifications) db.notifications = [];
@@ -3892,10 +3892,7 @@
             if (db.notifications.length > 50) db.notifications = db.notifications.slice(0, 50);
             saveDB();
             renderNotifPanel();
-            // Browser notification
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('CodeveraSt — ' + title, { body, icon: '' });
-            }
+            if ('Notification' in window && Notification.permission === 'granted') { new Notification('CodeveraSt — ' + title, { body, icon: '' }); }
         }
         function renderNotifPanel() {
             const dot = document.getElementById('notif-dot');
@@ -3903,26 +3900,26 @@
             if (unread > 0) dot.classList.add('show'); else dot.classList.remove('show');
             const list = document.getElementById('notif-list'); if (!list) return;
             const notifs = db.notifications || [];
-            if (!notifs.length) { list.innerHTML = '<div class="notif-empty">لا توجد إشعارات جديدة</div>'; return }
+            if (!notifs.length) { list.innerHTML = '<div class="notif-empty">لا توجد إشعارات جديدة</div>'; return; }
             list.innerHTML = notifs.map(n => `<div class="notif-item ni-${n.type}" onclick="markNotifRead('${n.id}');showPage('dashboard')" style="${n.read ? 'opacity:.6' : ''}"><div class="ni-t">${n.title}</div><div class="ni-s">${n.body}</div><div class="ni-s" style="margin-top:2px;color:var(--text-muted)">${n.time}</div></div>`).join('');
         }
-        function markNotifRead(id) { const n = (db.notifications || []).find(x => x.id === id); if (n) n.read = true; saveDB(); renderNotifPanel() }
-        function clearNotifs() { db.notifications = []; saveDB(); renderNotifPanel(); document.getElementById('notif-panel').classList.remove('open') }
+        function markNotifRead(id) { const n = (db.notifications || []).find(x => x.id === id); if (n) n.read = true; saveDB(); renderNotifPanel(); }
+        function clearNotifs() { db.notifications = []; saveDB(); renderNotifPanel(); document.getElementById('notif-panel').classList.remove('open'); }
         function toggleNotifPanel() {
             const p = document.getElementById('notif-panel'); p.classList.toggle('open');
-            if (p.classList.contains('open')) { (db.notifications || []).forEach(n => n.read = true); saveDB(); setTimeout(renderNotifPanel, 300) }
+            if (p.classList.contains('open')) { (db.notifications || []).forEach(n => n.read = true); saveDB(); setTimeout(renderNotifPanel, 300); }
         }
-        document.addEventListener('click', e => { if (!e.target.closest('#notif-btn') && !e.target.closest('#notif-panel')) document.getElementById('notif-panel').classList.remove('open') });
+        document.addEventListener('click', e => { if (!e.target.closest('#notif-btn') && !e.target.closest('#notif-panel')) document.getElementById('notif-panel').classList.remove('open'); });
         function checkAutoNotifs() {
             const t = today(), am = db.attendance[t] || {};
             const active = db.students.filter(s => s.status === 'active');
             if (!active.length) return;
             const absent = active.filter(s => am[s.id] === 'absent');
             const absPct = Math.round(absent.length / active.length * 100);
-            if (absPct >= 40 && absent.length > 0) { pushNotif('تحذير: غياب عالي!', `${absent.length} طالب غائب اليوم (${absPct}%)  ⚠️`, 'warn') }
+            if (absPct >= 40 && absent.length > 0) { pushNotif('تحذير: غياب عالي!', `${absent.length} طالب غائب اليوم (${absPct}%)  ⚠️`, 'warn'); }
             const d = new Date(), key = `${d.getFullYear()}-${d.getMonth() + 1}`, fm = db.fees[key] || {};
             const unpaid = active.filter(s => !fm[s.id]?.paid);
-            if (unpaid.length > 0 && unpaid.length === active.length) { pushNotif('تذكير: المصاريف', `${unpaid.length} طالب لم يسدد مصاريف هذا الشهر بعد 💰`, 'info') }
+            if (unpaid.length > 0 && unpaid.length === active.length) { pushNotif('تذكير: المصاريف', `${unpaid.length} طالب لم يسدد مصاريف هذا الشهر بعد 💰`, 'info'); }
         }
 
         // ============================================================ AUTH ============================================================
@@ -3938,15 +3935,15 @@
                 renderAll();
                 toast('مرحباً بك في CodeveraSt', 'success');
                 setTimeout(checkAutoNotifs, 2000);
-            } else { ee.style.display = 'block'; setTimeout(() => ee.style.display = 'none', 3000) }
+            } else { ee.style.display = 'block'; setTimeout(() => ee.style.display = 'none', 3000); }
         }
-        document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin() });
-        function doLogout() { document.getElementById('app').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex' }
+        document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin(); });
+        function doLogout() { document.getElementById('app').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
         function changePassword() {
             const o = document.getElementById('pw-old').value, n = document.getElementById('pw-new').value, c = document.getElementById('pw-con').value;
-            if (o !== db.settings.adminPass) { toast('كلمة المرور الحالية خاطئة', 'error'); return }
-            if (!n || n.length < 6) { toast('كلمة المرور الجديدة قصيرة جداً', 'error'); return }
-            if (n !== c) { toast('كلمتا المرور غير متطابقتان', 'error'); return }
+            if (o !== db.settings.adminPass) { toast('كلمة المرور الحالية خاطئة', 'error'); return; }
+            if (!n || n.length < 6) { toast('كلمة المرور الجديدة قصيرة جداً', 'error'); return; }
+            if (n !== c) { toast('كلمتا المرور غير متطابقتان', 'error'); return; }
             db.settings.adminPass = n; saveDB();
             ['pw-old', 'pw-new', 'pw-con'].forEach(id => document.getElementById(id).value = '');
             toast('تم تحديث كلمة المرور', 'success');
@@ -3976,13 +3973,13 @@
         // ============================================================ SELECTS ============================================================
         function popAllSelects() {
             const clsIds = ['sf-cls', 'att-cls', 'fee-cls', 'g-cls', 'rec-cls', 'f-cls', 'grp-cls', 'bgrp-cls', 'rep-cls', 'idc-cls'];
-            clsIds.forEach(id => { const el = document.getElementById(id); if (!el) return; const v = el.value; const ph = id === 'f-cls' ? '<option value="">اختر الصف</option>' : '<option value="">كل الصفوف</option>'; el.innerHTML = ph; db.classes.forEach(c => el.innerHTML += `<option value="${c.id}">${c.name}</option>`); if (v) el.value = v });
+            clsIds.forEach(id => { const el = document.getElementById(id); if (!el) return; const v = el.value; const ph = id === 'f-cls' ? '<option value="">اختر الصف</option>' : '<option value="">كل الصفوف</option>'; el.innerHTML = ph; db.classes.forEach(c => el.innerHTML += `<option value="${c.id}">${c.name}</option>`); if (v) el.value = v; });
             const grpIds = ['sf-grp', 'att-grp', 'fee-grp', 'g-grp', 'f-grp', 'idc-grp'];
-            grpIds.forEach(id => { const el = document.getElementById(id); if (!el) return; const v = el.value; const ph = id === 'f-grp' ? '<option value="">اختر المجموعة</option>' : '<option value="">كل المجموعات</option>'; el.innerHTML = ph; db.groups.forEach(g => el.innerHTML += `<option value="${g.id}">${g.name}</option>`); if (v) el.value = v });
-            const gex = document.getElementById('g-exam'); if (gex) { const v = gex.value; gex.innerHTML = '<option value="">كل الامتحانات</option>'; db.exams.forEach(e => gex.innerHTML += `<option value="${e.id}">${e.name}</option>`); if (v) gex.value = v }
-            const rs = document.getElementById('rep-stu'); if (rs) { const v = rs.value; rs.innerHTML = '<option value="">اختر الطالب</option>'; db.students.forEach(s => rs.innerHTML += `<option value="${s.id}">${s.name}</option>`); if (v) rs.value = v }
+            grpIds.forEach(id => { const el = document.getElementById(id); if (!el) return; const v = el.value; const ph = id === 'f-grp' ? '<option value="">اختر المجموعة</option>' : '<option value="">كل المجموعات</option>'; el.innerHTML = ph; db.groups.forEach(g => el.innerHTML += `<option value="${g.id}">${g.name}</option>`); if (v) el.value = v; });
+            const gex = document.getElementById('g-exam'); if (gex) { const v = gex.value; gex.innerHTML = '<option value="">كل الامتحانات</option>'; db.exams.forEach(e => gex.innerHTML += `<option value="${e.id}">${e.name}</option>`); if (v) gex.value = v; }
+            const rs = document.getElementById('rep-stu'); if (rs) { const v = rs.value; rs.innerHTML = '<option value="">اختر الطالب</option>'; db.students.forEach(s => rs.innerHTML += `<option value="${s.id}">${s.name}</option>`); if (v) rs.value = v; }
         }
-        function populateBGrps() { const cls = document.getElementById('bgrp-cls').value; const el = document.getElementById('bgrp-sel'); el.innerHTML = '<option value="">اختر المجموعة</option>'; db.groups.filter(g => !cls || g.classId === cls).forEach(g => el.innerHTML += `<option value="${g.id}">${g.name}</option>`) }
+        function populateBGrps() { const cls = document.getElementById('bgrp-cls').value; const el = document.getElementById('bgrp-sel'); el.innerHTML = '<option value="">اختر المجموعة</option>'; db.groups.filter(g => !cls || g.classId === cls).forEach(g => el.innerHTML += `<option value="${g.id}">${g.name}</option>`); }
         function updateRepClsGroups() {
             const cls = document.getElementById('rep-cls').value; const el = document.getElementById('rep-grp'); if (!el) return;
             el.innerHTML = '<option value="">كل المجموعات</option>';
@@ -3990,14 +3987,14 @@
         }
 
         // ============================================================ DASHBOARD ============================================================
-        function addAct(text, type = 'info') { db.activities.push({ text, time: nowStr(), type }); if (db.activities.length > 60) db.activities.shift() }
-        function updateNavBadge() { document.getElementById('nb-s').textContent = db.students.length }
+        function addAct(text, type = 'info') { db.activities.push({ text, time: nowStr(), type }); if (db.activities.length > 60) db.activities.shift(); }
+        function updateNavBadge() { document.getElementById('nb-s').textContent = db.students.length; }
         function renderDash() {
             const total = db.students.length, active = db.students.filter(s => s.status === 'active').length, t = today();
             const am = db.attendance[t] || {}, pres = Object.values(am).filter(v => v === 'present').length, abs = Object.values(am).filter(v => v === 'absent').length;
             const d = new Date(), key = `${d.getFullYear()}-${d.getMonth() + 1}`, mf = db.fees[key] || {};
             const paid = Object.values(mf).filter(f => f.paid).length;
-            const pAmt = Object.entries(mf).filter(([, f]) => f.paid).reduce((s, [id, f]) => { const st = db.students.find(x => x.id === id); return s + (f.amount || st?.fee || 500) }, 0);
+            const pAmt = Object.entries(mf).filter(([, f]) => f.paid).reduce((s, [id, f]) => { const st = db.students.find(x => x.id === id); return s + (f.amount || st?.fee || 500); }, 0);
             document.getElementById('dash-stats').innerHTML = `
     <div class="sc blue"><div class="sc-lbl">إجمالي الطلاب</div><div class="sc-val">${total}</div><div class="sc-sub">${active} نشط</div><div class="sc-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div></div>
     <div class="sc sky"><div class="sc-lbl">حاضرون اليوم</div><div class="sc-val">${pres}</div><div class="sc-sub">${total > 0 ? Math.round(pres / total * 100) : 0}%</div><div class="sc-ico"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
@@ -4015,16 +4012,13 @@
         function renderAnalytics() {
             const container = document.getElementById('analytics-content'); if (!container) return;
             const total = db.students.length;
-            if (!total) { container.innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="empty-t">لا يوجد بيانات كافية للتحليل</div><div class="empty-s">أضف طلاباً أولاً</div></div>`; return }
-            // Attendance last 7 days
+            if (!total) { container.innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div class="empty-t">لا يوجد بيانات كافية للتحليل</div><div class="empty-s">أضف طلاباً أولاً</div></div>`; return; }
             const days = [], attData = [];
-            for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().split('T')[0]; days.push(d.toLocaleDateString('ar-EG', { weekday: 'short' })); const am = db.attendance[ds] || {}; attData.push(Object.values(am).filter(v => v === 'present').length) }
+            for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().split('T')[0]; days.push(d.toLocaleDateString('ar-EG', { weekday: 'short' })); const am = db.attendance[ds] || {}; attData.push(Object.values(am).filter(v => v === 'present').length); }
             const maxAtt = Math.max(...attData, 1);
-            // Fees by class
-            const d = new Date(), key = `${d.getFullYear()}-${d.getMonth() + 1}`, mf = db.fees[key] || {};
-            const classStats = db.classes.map(c => { const stus = db.students.filter(s => s.classId === c.id); const paid = stus.filter(s => mf[s.id]?.paid).length; return { name: c.name, total: stus.length, paid } }).filter(c => c.total > 0);
-            // Top attendees
-            const attScores = db.students.map(s => { let pres = 0, tot = 0; Object.values(db.attendance).forEach(d => { if (d[s.id]) tot++; if (d[s.id] === 'present') pres++ }); return { s, pct: tot > 0 ? Math.round(pres / tot * 100) : 0, pres } }).sort((a, b) => b.pct - a.pct).slice(0, 5);
+            const d2 = new Date(), key = `${d2.getFullYear()}-${d2.getMonth() + 1}`, mf = db.fees[key] || {};
+            const classStats = db.classes.map(c => { const stus = db.students.filter(s => s.classId === c.id); const paid = stus.filter(s => mf[s.id]?.paid).length; return { name: c.name, total: stus.length, paid }; }).filter(c => c.total > 0);
+            const attScores = db.students.map(s => { let pres = 0, tot = 0; Object.values(db.attendance).forEach(d => { if (d[s.id]) tot++; if (d[s.id] === 'present') pres++; }); return { s, pct: tot > 0 ? Math.round(pres / tot * 100) : 0, pres }; }).sort((a, b) => b.pct - a.pct).slice(0, 5);
             container.innerHTML = `
   <div class="analytics-hero">
     <div class="ah-title">📊 تحليل أداء النظام</div>
@@ -4046,7 +4040,7 @@
     <div class="card">
       <div class="card-hdr"><div class="ct"><div class="cti"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>أعلى نسبة حضور</div></div>
       <div class="top-list">
-        ${attScores.map((a, i) => { const cls = db.classes.find(c => c.id === a.s.classId); return `<div class="top-item"><div class="top-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div><div class="sc-av" style="width:28px;height:28px;font-size:.72rem">${a.s.name.charAt(0)}</div><div style="flex:1"><div style="font-size:.82rem;font-weight:700">${a.s.name}</div><div style="font-size:.69rem;color:var(--text-muted)">${cls?.name || ''} — ${a.pres} يوم حضور</div></div><span class="badge ${a.pct >= 80 ? 'badge-present' : a.pct >= 50 ? 'badge-sky' : 'badge-absent'}">${a.pct}%</span></div>` }).join('') || '<div style="color:var(--text-muted);text-align:center;padding:14px;font-size:.8rem">لا يوجد سجل حضور بعد</div>'}
+        ${attScores.map((a, i) => { const cls = db.classes.find(c => c.id === a.s.classId); return `<div class="top-item"><div class="top-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div><div class="sc-av" style="width:28px;height:28px;font-size:.72rem">${a.s.name.charAt(0)}</div><div style="flex:1"><div style="font-size:.82rem;font-weight:700">${a.s.name}</div><div style="font-size:.69rem;color:var(--text-muted)">${cls?.name || ''} — ${a.pres} يوم حضور</div></div><span class="badge ${a.pct >= 80 ? 'badge-present' : a.pct >= 50 ? 'badge-sky' : 'badge-absent'}">${a.pct}%</span></div>`; }).join('') || '<div style="color:var(--text-muted);text-align:center;padding:14px;font-size:.8rem">لا يوجد سجل حضور بعد</div>'}
       </div>
     </div>
     <div class="card">
@@ -4077,7 +4071,7 @@
             });
             const cnt = document.getElementById('idc-count'); if (cnt) cnt.textContent = `${list.length} بطاقة`;
             const grid = document.getElementById('idcards-grid'); if (!grid) return;
-            if (!list.length) { grid.innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div class="empty-t">لا توجد بطاقات مطابقة</div><div class="empty-s">جرّب تغيير معايير البحث</div></div>`; return }
+            if (!list.length) { grid.innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div class="empty-t">لا توجد بطاقات مطابقة</div><div class="empty-s">جرّب تغيير معايير البحث</div></div>`; return; }
             grid.innerHTML = `<div class="id-cards-grid">${list.map(s => idCardHTML(s)).join('')}</div>`;
         }
         function idCardHTML(s) {
@@ -4104,7 +4098,7 @@
       <div class="idc-acts">
         <button class="btn btn-primary btn-xs" onclick="closeM('modal-prof');showQR('${s.id}')">QR Code</button>
         <button class="btn btn-ghost btn-xs" onclick="editStu('${s.id}')">تعديل</button>
-        ${s.parentPhone ? `<button class="wa-btn" onclick="sendWA('${s.id}','report')" style="font-size:.68rem;padding:3px 7px">واتساب</button>` : ''}
+        ${s.parentPhone ? `<button class="wa-btn" onclick="sendQuickWA('${s.id}')" style="font-size:.68rem;padding:3px 7px">واتساب</button>` : ''}
       </div>
       <div class="idc-logo">CodeveraSt</div>
     </div>
@@ -4115,15 +4109,15 @@
             const grp = document.getElementById('idc-grp')?.value || '';
             const q = (document.getElementById('idc-q')?.value || '').toLowerCase();
             const list = db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp) && (!q || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)));
-            if (!list.length) { toast('لا يوجد بطاقات للطباعة', 'warning'); return }
+            if (!list.length) { toast('لا يوجد بطاقات للطباعة', 'warning'); return; }
             const w = window.open('', '_blank');
-            w.document.write(`<html><head><title>بطاقات الطلاب</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap');body{font-family:Cairo,sans-serif;direction:rtl;padding:16px;background:#fff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media print{.grid{grid-template-columns:repeat(3,1fr)}}.card{border:2px solid #2563eb;border-radius:14px;padding:16px;break-inside:avoid}.av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;font-size:1.2rem;font-weight:900;display:flex;align-items:center;justify-content:center;margin-bottom:8px}.nm{font-size:.95rem;font-weight:900;color:#1e293b}.id{font-size:.75rem;color:#2563eb;font-weight:700}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:9px 0}.f{background:#f0f6ff;border-radius:6px;padding:6px 8px}.fl{font-size:.6rem;color:#94a3b8}.fv{font-size:.74rem;font-weight:700;color:#1e293b}.logo{font-size:.65rem;color:#94a3b8;text-align:left;margin-top:8px;font-weight:700}@media print{body{margin:0;padding:8px}}</style></head><body><div class="grid">${list.map(s => { const cls2 = db.classes.find(c => c.id === s.classId), grp2 = db.groups.find(g => g.id === s.groupId); let p = 0, a = 0; Object.values(db.attendance).forEach(d => { if (d[s.id] === 'present') p++; if (d[s.id] === 'absent') a++ }); const pct = p + a > 0 ? Math.round(p / (p + a) * 100) : 0; return `<div class="card"><div class="av">${s.name.charAt(0)}</div><div class="nm">${s.name}</div><div class="id">${s.id}</div><div class="row"><div class="f"><div class="fl">الصف</div><div class="fv">${cls2?.name || '—'}</div></div><div class="f"><div class="fl">المجموعة</div><div class="fv">${grp2?.name || '—'}</div></div><div class="f"><div class="fl">ولي الأمر</div><div class="fv">${s.parent || '—'}</div></div><div class="f"><div class="fl">الحضور</div><div class="fv">${pct}%</div></div></div><div class="logo">CodeveraSt v4</div></div>` }).join('')}</div><script>window.onload=()=>window.print()<\/script></body></html>`);
+            w.document.write(`<html><head><title>بطاقات الطلاب</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap');body{font-family:Cairo,sans-serif;direction:rtl;padding:16px;background:#fff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media print{.grid{grid-template-columns:repeat(3,1fr)}}.card{border:2px solid #2563eb;border-radius:14px;padding:16px;break-inside:avoid}.av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;font-size:1.2rem;font-weight:900;display:flex;align-items:center;justify-content:center;margin-bottom:8px}.nm{font-size:.95rem;font-weight:900;color:#1e293b}.id{font-size:.75rem;color:#2563eb;font-weight:700}.row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:9px 0}.f{background:#f0f6ff;border-radius:6px;padding:6px 8px}.fl{font-size:.6rem;color:#94a3b8}.fv{font-size:.74rem;font-weight:700;color:#1e293b}.logo{font-size:.65rem;color:#94a3b8;text-align:left;margin-top:8px;font-weight:700}@media print{body{margin:0;padding:8px}}</style></head><body><div class="grid">${list.map(s => { const cls2 = db.classes.find(c => c.id === s.classId), grp2 = db.groups.find(g => g.id === s.groupId); let p = 0, a = 0; Object.values(db.attendance).forEach(d => { if (d[s.id] === 'present') p++; if (d[s.id] === 'absent') a++; }); const pct = p + a > 0 ? Math.round(p / (p + a) * 100) : 0; return `<div class="card"><div class="av">${s.name.charAt(0)}</div><div class="nm">${s.name}</div><div class="id">${s.id}</div><div class="row"><div class="f"><div class="fl">الصف</div><div class="fv">${cls2?.name || '—'}</div></div><div class="f"><div class="fl">المجموعة</div><div class="fv">${grp2?.name || '—'}</div></div><div class="f"><div class="fl">ولي الأمر</div><div class="fv">${s.parent || '—'}</div></div><div class="f"><div class="fl">الحضور</div><div class="fv">${pct}%</div></div></div><div class="logo">CodeveraSt v4</div></div>`; }).join('')}</div><script>window.onload=()=>window.print()<\/script></body></html>`);
         }
 
         // ============================================================ STUDENTS ============================================================
         function autoFillFromClass() {
             const cls = document.getElementById('f-cls').value; const c = db.classes.find(x => x.id === cls);
-            if (c && c.fee) { document.getElementById('f-fee').value = c.fee; document.getElementById('f-fee-hint').textContent = `رسوم الصف: ${c.fee} ${db.settings.currency || 'جنيه'}` }
+            if (c && c.fee) { document.getElementById('f-fee').value = c.fee; document.getElementById('f-fee-hint').textContent = `رسوم الصف: ${c.fee} ${db.settings.currency || 'جنيه'}`; }
             const grpSel = document.getElementById('f-grp'); const v = grpSel.value;
             grpSel.innerHTML = '<option value="">اختر المجموعة</option>';
             db.groups.filter(g => !cls || g.classId === cls).forEach(g => grpSel.innerHTML += `<option value="${g.id}">${g.name}</option>`);
@@ -4131,7 +4125,7 @@
         }
         function autoFillFromGroup() {
             const gid = document.getElementById('f-grp').value; const g = db.groups.find(x => x.id === gid);
-            if (g && g.time) { document.getElementById('f-schedule').value = g.time; document.getElementById('f-sch-hint').textContent = `مواعيد: ${g.time}` }
+            if (g && g.time) { document.getElementById('f-schedule').value = g.time; document.getElementById('f-sch-hint').textContent = `مواعيد: ${g.time}`; }
         }
         function filterStudents() {
             const q = (document.getElementById('sf-q')?.value || '').toLowerCase(), cls = document.getElementById('sf-cls')?.value || '', grp = document.getElementById('sf-grp')?.value || '', st = document.getElementById('sf-st')?.value || '', mk = document.getElementById('sf-mk')?.value || '';
@@ -4146,8 +4140,8 @@
         }
         function renderStudentsList(list) {
             const c = document.getElementById('students-c');
-            if (!list.length) { c.innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="empty-t">لا يوجد طلاب مطابقون</div><div class="empty-s">جرب تغيير معايير البحث</div></div>`; return }
-            if (currentView === 'grid') { c.innerHTML = `<div class="sg">${list.map(s => stuCardHTML(s)).join('')}</div>`; return }
+            if (!list.length) { c.innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="empty-t">لا يوجد طلاب مطابقون</div><div class="empty-s">جرب تغيير معايير البحث</div></div>`; return; }
+            if (currentView === 'grid') { c.innerHTML = `<div class="sg">${list.map(s => stuCardHTML(s)).join('')}</div>`; return; }
             c.innerHTML = `<div class="tw"><table><thead><tr><th><input type="checkbox" id="sel-all" onchange="selAllCheck(this.checked)"></th><th>#</th><th>الطالب</th><th>ID</th><th>الصف</th><th>المجموعة</th><th>المواعيد</th><th>ولي الأمر</th><th>المصاريف</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>${list.map((s, i) => stuRowHTML(s, i + 1)).join('')}</tbody></table></div>`;
         }
         function stuCardHTML(s) {
@@ -4156,6 +4150,7 @@
         }
         function stuRowHTML(s, i) {
             const cls = db.classes.find(c => c.id === s.classId), grp = db.groups.find(g => g.id === s.groupId), sel = selStudents.has(s.id);
+            const whatsappBtn = s.parentPhone ? `<button class="wa-btn" onclick="event.stopPropagation();sendQuickWA('${s.id}')" style="padding:2px 6px;font-size:.7rem"><svg viewBox="0 0 24 24" width="10" height="10"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>واتساب</button>` : '';
             return `<tr onclick="openProf('${s.id}')" style="cursor:pointer">
     <td onclick="event.stopPropagation()"><input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleSel('${s.id}',this.checked)"></td>
     <td style="color:var(--text-muted);font-size:.76rem">${i}</td>
@@ -4171,24 +4166,24 @@
       <button class="btn-icon" onclick="editStu('${s.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
       <button class="btn-icon" onclick="showQR('${s.id}')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/></svg></button>
       <button class="btn-icon" onclick="toggleMark('${s.id}')"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
-      ${s.parentPhone ? `<button class="wa-btn" onclick="sendWA('${s.id}','report')"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>واتساب</button>` : ''}
+      ${whatsappBtn}
       <button class="btn-icon" style="border-color:rgba(239,68,68,.2);color:#f87171" onclick="confDel('${s.id}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div></td>
-  </tr>`;
+   </tr>`;
         }
-        function toggleView() { currentView = currentView === 'table' ? 'grid' : 'table'; document.getElementById('vl').textContent = currentView === 'table' ? 'عرض بطاقات' : 'عرض جدول'; filterStudents() }
-        function toggleSel(id, v) { if (v) selStudents.add(id); else selStudents.delete(id); updateBulkBar() }
-        function selectAllS() { db.students.forEach(s => selStudents.add(s.id)); filterStudents(); updateBulkBar() }
-        function deselectAllS() { selStudents.clear(); filterStudents(); updateBulkBar() }
-        function selAllCheck(v) { db.students.forEach(s => { if (v) selStudents.add(s.id); else selStudents.delete(s.id) }); filterStudents(); updateBulkBar() }
-        function updateBulkBar() { const n = selStudents.size; const b = document.getElementById('bulk-bar'); if (n > 0) { b.classList.add('visible'); document.getElementById('bc').textContent = `${n} طالب محدد` } else b.classList.remove('visible') }
-        function bulkPresent() { const d = document.getElementById('att-d')?.value || today(); if (!db.attendance[d]) db.attendance[d] = {}; selStudents.forEach(id => db.attendance[d][id] = 'present'); saveDB(); addAct(`حضور جماعي: ${selStudents.size} طالب`); toast(`تم تسجيل حضور ${selStudents.size} طالب`, 'success'); selStudents.clear(); filterStudents(); renderDash() }
-        function bulkAbsent() { const d = document.getElementById('att-d')?.value || today(); if (!db.attendance[d]) db.attendance[d] = {}; selStudents.forEach(id => db.attendance[d][id] = 'absent'); saveDB(); addAct(`غياب جماعي: ${selStudents.size} طالب`); toast(`تم تسجيل غياب ${selStudents.size} طالب`, 'warning'); selStudents.clear(); filterStudents(); renderDash() }
-        function bulkFee() { const d = new Date(), key = `${d.getFullYear()}-${d.getMonth() + 1}`; if (!db.fees[key]) db.fees[key] = {}; selStudents.forEach(id => { const s = db.students.find(x => x.id === id); db.fees[key][id] = { paid: true, date: today(), amount: s?.fee || db.settings.defaultFee, note: '' } }); saveDB(); addAct(`دفع جماعي: ${selStudents.size} طالب`); toast(`تم تسجيل دفع ${selStudents.size} طالب`, 'success'); selStudents.clear(); filterStudents(); renderDash() }
-        function bulkToggleMark() { selStudents.forEach(id => { const s = db.students.find(x => x.id === id); if (s) s.marked = !s.marked }); saveDB(); filterStudents(); toast(`تبديل تمييز ${selStudents.size} طالب`, 'info') }
-        function bulkChangeGroup() { popAllSelects(); populateBGrps(); openM('modal-bgrp') }
-        function applyBGrp() { const gid = document.getElementById('bgrp-sel').value, cls = document.getElementById('bgrp-cls').value; if (!gid) { toast('اختر مجموعة', 'error'); return } selStudents.forEach(id => { const s = db.students.find(x => x.id === id); if (s) { s.groupId = gid; if (cls) s.classId = cls } }); saveDB(); closeM('modal-bgrp'); filterStudents(); popAllSelects(); toast(`تم نقل ${selStudents.size} طالب`, 'success'); selStudents.clear(); filterStudents() }
-        function bulkDelete() { const n = selStudents.size; if (!n) return; showConfirm(`حذف ${n} طلاب`, `هل تريد حذف ${n} طالب محدد؟ لا يمكن التراجع.`, () => { db.students = db.students.filter(s => !selStudents.has(s.id)); addAct(`حذف جماعي: ${n} طالب`, 'red'); saveDB(); selStudents.clear(); filterStudents(); updateNavBadge(); renderDash(); toast(`تم حذف ${n} طالب`, 'info') }) }
+        function toggleView() { currentView = currentView === 'table' ? 'grid' : 'table'; document.getElementById('vl').textContent = currentView === 'table' ? 'عرض بطاقات' : 'عرض جدول'; filterStudents(); }
+        function toggleSel(id, v) { if (v) selStudents.add(id); else selStudents.delete(id); updateBulkBar(); }
+        function selectAllS() { db.students.forEach(s => selStudents.add(s.id)); filterStudents(); updateBulkBar(); }
+        function deselectAllS() { selStudents.clear(); filterStudents(); updateBulkBar(); }
+        function selAllCheck(v) { db.students.forEach(s => { if (v) selStudents.add(s.id); else selStudents.delete(s.id); }); filterStudents(); updateBulkBar(); }
+        function updateBulkBar() { const n = selStudents.size; const b = document.getElementById('bulk-bar'); if (n > 0) { b.classList.add('visible'); document.getElementById('bc').textContent = `${n} طالب محدد`; } else b.classList.remove('visible'); }
+        function bulkPresent() { const d = document.getElementById('att-d')?.value || today(); if (!db.attendance[d]) db.attendance[d] = {}; selStudents.forEach(id => db.attendance[d][id] = 'present'); saveDB(); addAct(`حضور جماعي: ${selStudents.size} طالب`); toast(`تم تسجيل حضور ${selStudents.size} طالب`, 'success'); selStudents.clear(); filterStudents(); renderDash(); }
+        function bulkAbsent() { const d = document.getElementById('att-d')?.value || today(); if (!db.attendance[d]) db.attendance[d] = {}; selStudents.forEach(id => db.attendance[d][id] = 'absent'); saveDB(); addAct(`غياب جماعي: ${selStudents.size} طالب`); toast(`تم تسجيل غياب ${selStudents.size} طالب`, 'warning'); selStudents.clear(); filterStudents(); renderDash(); }
+        function bulkFee() { const d = new Date(), key = `${d.getFullYear()}-${d.getMonth() + 1}`; if (!db.fees[key]) db.fees[key] = {}; selStudents.forEach(id => { const s = db.students.find(x => x.id === id); db.fees[key][id] = { paid: true, date: today(), amount: s?.fee || db.settings.defaultFee, note: '' }; }); saveDB(); addAct(`دفع جماعي: ${selStudents.size} طالب`); toast(`تم تسجيل دفع ${selStudents.size} طالب`, 'success'); selStudents.clear(); filterStudents(); renderDash(); }
+        function bulkToggleMark() { selStudents.forEach(id => { const s = db.students.find(x => x.id === id); if (s) s.marked = !s.marked; }); saveDB(); filterStudents(); toast(`تبديل تمييز ${selStudents.size} طالب`, 'info'); }
+        function bulkChangeGroup() { popAllSelects(); populateBGrps(); openM('modal-bgrp'); }
+        function applyBGrp() { const gid = document.getElementById('bgrp-sel').value, cls = document.getElementById('bgrp-cls').value; if (!gid) { toast('اختر مجموعة', 'error'); return; } selStudents.forEach(id => { const s = db.students.find(x => x.id === id); if (s) { s.groupId = gid; if (cls) s.classId = cls; } }); saveDB(); closeM('modal-bgrp'); filterStudents(); popAllSelects(); toast(`تم نقل ${selStudents.size} طالب`, 'success'); selStudents.clear(); filterStudents(); }
+        function bulkDelete() { const n = selStudents.size; if (!n) return; showConfirm(`حذف ${n} طلاب`, `هل تريد حذف ${n} طالب محدد؟ لا يمكن التراجع.`, () => { db.students = db.students.filter(s => !selStudents.has(s.id)); addAct(`حذف جماعي: ${n} طالب`, 'red'); saveDB(); selStudents.clear(); filterStudents(); updateNavBadge(); renderDash(); toast(`تم حذف ${n} طالب`, 'info'); }); }
         function openAddStudent() {
             editStuId = null; document.getElementById('modal-stu-title').textContent = 'إضافة طالب جديد';
             ['f-name', 'f-parent', 'f-phone', 'f-notes', 'f-sphone', 'f-email'].forEach(id => document.getElementById(id).value = '');
@@ -4200,14 +4195,14 @@
             document.getElementById('modal-stu-title').textContent = 'تعديل بيانات الطالب';
             document.getElementById('f-name').value = s.name; document.getElementById('f-id').value = s.id; document.getElementById('f-parent').value = s.parent || ''; document.getElementById('f-phone').value = s.parentPhone || ''; document.getElementById('f-date').value = s.date || today(); document.getElementById('f-fee').value = s.fee || db.settings.defaultFee; document.getElementById('f-notes').value = s.notes || ''; document.getElementById('f-sphone').value = s.phone || ''; document.getElementById('f-email').value = s.email || ''; document.getElementById('f-status').value = s.status || 'active';
             popAllSelects();
-            setTimeout(() => { document.getElementById('f-cls').value = s.classId || ''; autoFillFromClass(); setTimeout(() => { document.getElementById('f-grp').value = s.groupId || ''; const g = db.groups.find(x => x.id === s.groupId); if (g && g.time) document.getElementById('f-schedule').value = g.time }, 50) }, 60);
+            setTimeout(() => { document.getElementById('f-cls').value = s.classId || ''; autoFillFromClass(); setTimeout(() => { document.getElementById('f-grp').value = s.groupId || ''; const g = db.groups.find(x => x.id === s.groupId); if (g && g.time) document.getElementById('f-schedule').value = g.time; }, 50); }, 60);
             openM('modal-stu');
         }
         function saveStu() {
-            const name = (document.getElementById('f-name').value || '').trim(); if (!name) { toast('أدخل اسم الطالب', 'error'); return }
-            const cls = document.getElementById('f-cls').value; if (!cls) { toast('اختر الصف', 'error'); return }
+            const name = (document.getElementById('f-name').value || '').trim(); if (!name) { toast('أدخل اسم الطالب', 'error'); return; }
+            const cls = document.getElementById('f-cls').value; if (!cls) { toast('اختر الصف', 'error'); return; }
             const data = { name, classId: cls, groupId: document.getElementById('f-grp').value, parent: document.getElementById('f-parent').value, parentPhone: document.getElementById('f-phone').value, date: document.getElementById('f-date').value, fee: parseInt(document.getElementById('f-fee').value) || db.settings.defaultFee, notes: document.getElementById('f-notes').value, phone: document.getElementById('f-sphone').value, email: document.getElementById('f-email').value, status: document.getElementById('f-status').value };
-            if (editStuId) { const s = db.students.find(x => x.id === editStuId); Object.assign(s, data); addAct(`تعديل: ${name}`); toast('تم تحديث الطالب', 'success') }
+            if (editStuId) { const s = db.students.find(x => x.id === editStuId); Object.assign(s, data); addAct(`تعديل: ${name}`); toast('تم تحديث الطالب', 'success'); }
             else {
                 const ns = { id: document.getElementById('f-id').value, ...data, marked: false };
                 db.students.push(ns);
@@ -4215,13 +4210,13 @@
                 toast('تم إضافة الطالب', 'success');
                 pushNotif('طالب جديد', `تم إضافة ${name} للنظام ✅`, 'success');
                 saveDB(); closeM('modal-stu'); filterStudents(); updateNavBadge(); renderDash(); renderIDCards();
-                setTimeout(() => openProf(ns.id), 300); return
+                setTimeout(() => openProf(ns.id), 300); return;
             }
             saveDB(); closeM('modal-stu'); filterStudents(); updateNavBadge(); renderDash(); renderIDCards();
         }
-        function genId() { const ids = db.students.map(s => parseInt(s.id.replace('S', '')) || 0); return 'S' + String((ids.length ? Math.max(...ids) : 0) + 1).padStart(3, '0') }
-        function confDel(id) { const s = db.students.find(x => x.id === id); if (!s) return; showConfirm('حذف الطالب', `حذف "${s.name}"؟`, () => { db.students = db.students.filter(x => x.id !== id); saveDB(); filterStudents(); updateNavBadge(); renderDash(); renderIDCards(); toast('تم الحذف', 'info') }) }
-        function toggleMark(id) { const s = db.students.find(x => x.id === id); if (s) { s.marked = !s.marked; saveDB(); filterStudents() } }
+        function genId() { const ids = db.students.map(s => parseInt(s.id.replace('S', '')) || 0); return 'S' + String((ids.length ? Math.max(...ids) : 0) + 1).padStart(3, '0'); }
+        function confDel(id) { const s = db.students.find(x => x.id === id); if (!s) return; showConfirm('حذف الطالب', `حذف "${s.name}"؟`, () => { db.students = db.students.filter(x => x.id !== id); saveDB(); filterStudents(); updateNavBadge(); renderDash(); renderIDCards(); toast('تم الحذف', 'info'); }); }
+        function toggleMark(id) { const s = db.students.find(x => x.id === id); if (s) { s.marked = !s.marked; saveDB(); filterStudents(); } }
 
         // ============================================================ ATTENDANCE ============================================================
         function loadAtt() {
@@ -4244,34 +4239,95 @@
             document.getElementById('c-u').textContent = base.filter(s => !am[s.id]).length;
             const cn = db.classes.find(c => c.id === cls)?.name || '', gn = db.groups.find(g => g.id === grp)?.name || '';
             document.getElementById('att-sub').textContent = `${d}${cn ? ' — ' + cn : ''}${gn ? ' / ' + gn : ''}`;
-            if (!stus.length) { document.getElementById('att-list').innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/></svg></div><div class="empty-t">اختر الصف أو المجموعة</div></div>`; return }
-            document.getElementById('att-list').innerHTML = `<div class="tw"><table><thead><tr><th>#</th><th>الطالب</th><th>ID</th><th>الصف/المجموعة</th><th>الحالة</th><th>تحديد</th></tr></thead><tbody>${stus.map((s, i) => { const st = am[s.id] || 'unknown'; const c2 = db.classes.find(c => c.id === s.classId), g2 = db.groups.find(g => g.id === s.groupId); return `<tr><td style="color:var(--text-muted);font-size:.76rem">${i + 1}</td><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:26px;height:26px;font-size:.7rem">${s.name.charAt(0)}</div>${s.name}</div></td><td><span class="badge badge-blue">${s.id}</span></td><td style="font-size:.78rem">${c2?.name || ''}${g2 ? ' / ' + g2.name : ''}</td><td><span class="badge ${st === 'present' ? 'badge-present' : st === 'absent' ? 'badge-absent' : 'badge-unknown'}">${st === 'present' ? 'حاضر' : st === 'absent' ? 'غائب' : 'غير محدد'}</span></td><td><div class="att-grp"><button class="p ${st === 'present' ? 'on' : ''}" onclick="setAtt('${s.id}','present','${d}')">حاضر</button><button class="a ${st === 'absent' ? 'on' : ''}" onclick="setAtt('${s.id}','absent','${d}')">غائب</button><button class="u ${st === 'unknown' ? 'on' : ''}" onclick="setAtt('${s.id}','unknown','${d}')">—</button></div></td></tr>` }).join('')}</tbody></table></div>`;
+            if (!stus.length) { document.getElementById('att-list').innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/></svg></div><div class="empty-t">اختر الصف أو المجموعة</div></div>`; return; }
+            document.getElementById('att-list').innerHTML = `<div class="tw"><tr><thead><tr><th>#</th><th>الطالب</th><th>ID</th><th>الصف/المجموعة</th><th>الحالة</th><th>تحديد</th></tr></thead><tbody>${stus.map((s, i) => { const st = am[s.id] || 'unknown'; const c2 = db.classes.find(c => c.id === s.classId), g2 = db.groups.find(g => g.id === s.groupId); return `<tr><td style="color:var(--text-muted);font-size:.76rem">${i + 1}</td><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:26px;height:26px;font-size:.7rem">${s.name.charAt(0)}</div>${s.name}</div></td><td><span class="badge badge-blue">${s.id}</span></td><td style="font-size:.78rem">${c2?.name || ''}${g2 ? ' / ' + g2.name : ''}</td><td><span class="badge ${st === 'present' ? 'badge-present' : st === 'absent' ? 'badge-absent' : 'badge-unknown'}">${st === 'present' ? 'حاضر' : st === 'absent' ? 'غائب' : 'غير محدد'}</span></td><td><div class="att-grp"><button class="p ${st === 'present' ? 'on' : ''}" onclick="setAtt('${s.id}','present','${d}')">حاضر</button><button class="a ${st === 'absent' ? 'on' : ''}" onclick="setAtt('${s.id}','absent','${d}')">غائب</button><button class="u ${st === 'unknown' ? 'on' : ''}" onclick="setAtt('${s.id}','unknown','${d}')">—</button></div></td></tr>`; }).join('')}</tbody></table></div>`;
         }
-        function setAtt(sid, st, d) { if (!db.attendance[d]) db.attendance[d] = {}; db.attendance[d][sid] = st; saveDB(); renderAtt(); renderDash() }
-        function markAllP() { const { d, cls, grp } = attCache; if (!d) return; if (!db.attendance[d]) db.attendance[d] = {}; db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp)).forEach(s => db.attendance[d][s.id] = 'present'); saveDB(); renderAtt(); renderDash(); toast('تم تسجيل حضور الجميع', 'success') }
-        function markAllA() { const { d, cls, grp } = attCache; if (!d) return; if (!db.attendance[d]) db.attendance[d] = {}; db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp)).forEach(s => db.attendance[d][s.id] = 'absent'); saveDB(); renderAtt(); renderDash(); toast('تم تسجيل غياب الجميع', 'warning') }
-        function saveAtt() { saveDB(); addAct('حفظ كشف الحضور ' + attCache.d); toast('تم حفظ الحضور', 'success'); checkAutoNotifs() }
+        function setAtt(sid, st, d) { if (!db.attendance[d]) db.attendance[d] = {}; db.attendance[d][sid] = st; saveDB(); renderAtt(); renderDash(); }
+        function markAllP() { const { d, cls, grp } = attCache; if (!d) return; if (!db.attendance[d]) db.attendance[d] = {}; db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp)).forEach(s => db.attendance[d][s.id] = 'present'); saveDB(); renderAtt(); renderDash(); toast('تم تسجيل حضور الجميع', 'success'); }
+        function markAllA() { const { d, cls, grp } = attCache; if (!d) return; if (!db.attendance[d]) db.attendance[d] = {}; db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp)).forEach(s => db.attendance[d][s.id] = 'absent'); saveDB(); renderAtt(); renderDash(); toast('تم تسجيل غياب الجميع', 'warning'); }
+        function saveAtt() { saveDB(); addAct('حفظ كشف الحضور ' + attCache.d); toast('تم حفظ الحضور', 'success'); checkAutoNotifs(); }
 
-        // ============================================================ QR ============================================================
+        // ============================================================ QR SCANNER ============================================================
+        function openScanner() {
+            openM('modal-scan');
+            scanHistory = [];
+            renderScanHistory();
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => { startQrScanner(); }).catch(() => startQrScanner());
+            } else { startQrScanner(); }
+        }
+        function startQrScanner() {
+            const scanRegion = document.getElementById("scan-v");
+            if (!scanRegion) return;
+            html5QrCode = new Html5Qrcode("scan-v");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                handleQR(decodedText);
+                if (navigator.vibrate) navigator.vibrate(200);
+            }, (error) => {}).catch((err) => { console.error("فشل تشغيل الكاميرا", err); showManScan(); });
+        }
+        function showManScan() {
+            const manualDiv = document.getElementById('scan-manual');
+            if (manualDiv) {
+                manualDiv.innerHTML = `<div class="notice info" style="margin-top:8px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>الكاميرا غير متاحة — أدخل ID يدوياً</div><div style="display:flex;gap:7px;margin-top:7px"><input type="text" id="man-id" placeholder="مثال: S001" style="flex:1;padding:8px 11px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:var(--r-md);color:var(--text-main);font-family:Cairo,sans-serif"><button class="btn btn-primary btn-sm" onclick="handleQR(document.getElementById('man-id').value)">تأكيد حضور</button></div>`;
+            }
+        }
+        function handleQR(raw) {
+            try {
+                let sid; try { const d = JSON.parse(raw); sid = d.id; } catch { sid = raw.trim(); }
+                if (scanHistory.find(h => h.id === sid && h.success)) {
+                    const r = document.getElementById('scan-res'); if (r) { r.className = 'scan-result'; r.style.display = 'block'; r.textContent = '⚠️ تم تسجيل الحضور مسبقاً في هذه الجلسة'; setTimeout(() => { if (r) r.style.display = 'none'; }, 2000); }
+                    return;
+                }
+                const s = db.students.find(x => x.id === sid);
+                if (s) {
+                    const d = document.getElementById('att-d')?.value || today();
+                    if (!db.attendance[d]) db.attendance[d] = {};
+                    db.attendance[d][s.id] = 'present';
+                    saveDB();
+                    scanHistory.unshift({ id: s.id, name: s.name, time: new Date().toLocaleTimeString('ar-EG'), success: true });
+                    const r = document.getElementById('scan-res'); if (r) { r.className = 'scan-result'; r.style.display = 'block'; r.textContent = `✅ حضور: ${s.name} — ${new Date().toLocaleTimeString('ar-EG')}`; }
+                    toast(`✅ حضور: ${s.name}`, 'success');
+                    addAct(`مسح QR — حضور: ${s.name}`);
+                    renderDash(); if (attCache.d === d) renderAtt();
+                    renderScanHistory();
+                    setTimeout(() => { const r = document.getElementById('scan-res'); if (r) r.style.display = 'none'; }, 3000);
+                } else {
+                    scanHistory.unshift({ id: sid, name: 'غير معروف', time: new Date().toLocaleTimeString('ar-EG'), success: false });
+                    const r = document.getElementById('scan-res'); if (r) { r.className = 'scan-result err'; r.style.display = 'block'; r.textContent = `❌ لم يُعثر على طالب: ${sid}`; }
+                    toast(`لم يُعثر على طالب: ${sid}`, 'error');
+                    renderScanHistory();
+                    setTimeout(() => { if (r) r.style.display = 'none'; }, 2500);
+                }
+            } catch (e) { toast('خطأ في قراءة QR', 'error'); }
+        }
+        function renderScanHistory() {
+            const el = document.getElementById('scan-history'); if (!el) return;
+            if (!scanHistory.length) { el.innerHTML = ''; return; }
+            el.innerHTML = `<div style="font-size:.74rem;font-weight:800;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">سجل هذه الجلسة</div>${scanHistory.slice(0, 8).map(h => `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border);font-size:.77rem"><span style="color:${h.success ? '#34d399' : '#f87171'}">${h.success ? '✅' : '❌'}</span><span style="flex:1;font-weight:700">${h.name}</span><span style="color:var(--text-muted)">${h.time}</span></div>`).join('')}`;
+        }
+        function closeScanner() { if (html5QrCode && html5QrCode.isScanning) { html5QrCode.stop().catch(e => console.log(e)); } closeM('modal-scan'); }
+
+        // ============================================================ QR CODE GENERATOR ============================================================
         function showQR(sid) {
             const s = db.students.find(x => x.id === sid); if (!s) return; curProfId = sid;
             const cls = db.classes.find(c => c.id === s.classId), grp = db.groups.find(g => g.id === s.groupId);
             document.getElementById('prof-title').textContent = `QR Code — ${s.name}`;
             document.getElementById('prof-body').innerHTML = `<div style="text-align:center;padding:14px"><div style="margin-bottom:12px"><div style="font-size:1.05rem;font-weight:900">${s.name}</div><div style="font-size:.8rem;color:var(--text-muted)">${s.id} — ${cls?.name || ''} / ${grp?.name || ''}</div></div><div id="qr-out" style="display:inline-block;padding:13px;background:white;border-radius:11px;margin-bottom:14px"></div><div style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="printQR('${sid}')">طباعة QR</button><button class="btn btn-ghost btn-sm" onclick="printCard('${sid}')">بطاقة الطالب</button><button class="btn btn-success btn-sm" onclick="printStudentReport('${sid}')">تقرير كامل</button></div></div>`;
             openM('modal-prof');
-            setTimeout(() => { const div = document.getElementById('qr-out'); if (div) { try { new QRCode(div, { text: JSON.stringify({ id: s.id, name: s.name }), width: 190, height: 190, colorDark: '#000', colorLight: '#fff' }) } catch (e) { div.innerHTML = `<div style="width:190px;height:190px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#333;font-weight:900;font-size:1.5rem">${s.id}</div>` } } }, 100);
+            setTimeout(() => { const div = document.getElementById('qr-out'); if (div) { try { new QRCode(div, { text: JSON.stringify({ id: s.id, name: s.name }), width: 190, height: 190, colorDark: '#000', colorLight: '#fff' }); } catch (e) { div.innerHTML = `<div style="width:190px;height:190px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#333;font-weight:900;font-size:1.5rem">${s.id}</div>`; } } }, 100);
         }
-        function printQR(sid) { const s = db.students.find(x => x.id === sid); const qr = document.getElementById('qr-out'); if (!s || !qr) return; const w = window.open('', '_blank'); w.document.write(`<html><head><title>QR ${s.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap');body{font-family:Cairo,sans-serif;text-align:center;padding:30px;direction:rtl}h2{color:#2563eb}</style></head><body><h2>${s.name}</h2><p style="color:#666">${s.id}</p>${qr.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`) }
-        function printCard(sid) { const s = db.students.find(x => x.id === sid); if (!s) return; const cls = db.classes.find(c => c.id === s.classId), grp = db.groups.find(g => g.id === s.groupId), qr = document.getElementById('qr-out'); const w = window.open('', '_blank'); w.document.write(`<html><head><title>بطاقة ${s.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;900&display=swap');body{font-family:Cairo,sans-serif;margin:0;padding:20px;background:#fff;direction:rtl}.card{width:350px;margin:0 auto;border:2px solid #2563eb;border-radius:18px;padding:24px;text-align:center;background:linear-gradient(135deg,#fff 0%,#eff6ff 100%)}.logo{font-size:1.5rem;font-weight:900;color:#2563eb;margin-bottom:14px}.nm{font-size:1.25rem;font-weight:900;color:#0b1628;margin:9px 0 4px}.mt{font-size:.8rem;color:#64748b}</style></head><body><div class="card"><div class="logo">CodeveraSt</div>${qr ? qr.innerHTML : ''}<div class="nm">${s.name}</div><div class="mt">${s.id} — ${cls?.name || ''} / ${grp?.name || ''}</div>${s.parent ? `<div class="mt" style="margin-top:5px">ولي الأمر: ${s.parent}</div>` : ''}</div><script>window.onload=()=>window.print()<\/script></body></html>`) }
+        function printQR(sid) { const s = db.students.find(x => x.id === sid); const qr = document.getElementById('qr-out'); if (!s || !qr) return; const w = window.open('', '_blank'); w.document.write(`<html><head><title>QR ${s.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap');body{font-family:Cairo,sans-serif;text-align:center;padding:30px;direction:rtl}h2{color:#2563eb}</style></head><body><h2>${s.name}</h2><p style="color:#666">${s.id}</p>${qr.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`); }
+        function printCard(sid) { const s = db.students.find(x => x.id === sid); if (!s) return; const cls = db.classes.find(c => c.id === s.classId), grp = db.groups.find(g => g.id === s.groupId); const qr = document.getElementById('qr-out'); const w = window.open('', '_blank'); w.document.write(`<html><head><title>بطاقة ${s.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;900&display=swap');body{font-family:Cairo,sans-serif;margin:0;padding:20px;background:#fff;direction:rtl}.card{width:350px;margin:0 auto;border:2px solid #2563eb;border-radius:18px;padding:24px;text-align:center;background:linear-gradient(135deg,#fff 0%,#eff6ff 100%)}.logo{font-size:1.5rem;font-weight:900;color:#2563eb;margin-bottom:14px}.nm{font-size:1.25rem;font-weight:900;color:#0b1628;margin:9px 0 4px}.mt{font-size:.8rem;color:#64748b}</style></head><body><div class="card"><div class="logo">CodeveraSt</div>${qr ? qr.innerHTML : ''}<div class="nm">${s.name}</div><div class="mt">${s.id} — ${cls?.name || ''} / ${grp?.name || ''}</div>${s.parent ? `<div class="mt" style="margin-top:5px">ولي الأمر: ${s.parent}</div>` : ''}</div><script>window.onload=()=>window.print()<\/script></body></html>`); }
 
         // ============================================================ STUDENT PROFILE ============================================================
         function openProf(sid) {
             const s = db.students.find(x => x.id === sid); if (!s) return; curProfId = sid;
             const cls = db.classes.find(c => c.id === s.classId), grp = db.groups.find(g => g.id === s.groupId);
             let pres = 0, abs = 0, attHist = [];
-            Object.entries(db.attendance).forEach(([d, m]) => { const st = m[sid]; if (st === 'present') pres++; if (st === 'absent') abs++; if (st) attHist.push({ d, st }) });
+            Object.entries(db.attendance).forEach(([d, m]) => { const st = m[sid]; if (st === 'present') pres++; if (st === 'absent') abs++; if (st) attHist.push({ d, st }); });
             attHist.sort((a, b) => b.d.localeCompare(a.d));
-            let feesH = []; Object.entries(db.fees).forEach(([k, m]) => { if (m[sid]) feesH.push({ k, ...m[sid] }) });
+            let feesH = []; Object.entries(db.fees).forEach(([k, m]) => { if (m[sid]) feesH.push({ k, ...m[sid] }); });
             const gradeRows = db.exams.map(e => ({ e, sc: db.grades[e.id]?.[sid] })).filter(r => r.sc !== undefined);
             document.getElementById('prof-title').textContent = `ملف — ${s.name}`;
             document.getElementById('prof-body').innerHTML = `
@@ -4294,7 +4350,7 @@
         <button class="btn btn-primary btn-sm" onclick="editStu('${sid}');closeM('modal-prof')">تعديل</button>
         <button class="btn btn-ghost btn-sm" onclick="closeM('modal-prof');showQR('${sid}')">QR Code</button>
         <button class="btn btn-success btn-sm" onclick="printStudentReport('${sid}')">تقرير كامل</button>
-        ${s.parentPhone ? `<button class="wa-btn" onclick="sendWA('${sid}','report')"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>واتساب</button>` : ''}
+        ${s.parentPhone ? `<button class="wa-btn" onclick="sendQuickWA('${sid}')"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>واتساب</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="toggleMark('${sid}');closeM('modal-prof');setTimeout(()=>openProf('${sid}'),100)">${s.marked ? 'إزالة النجمة' : 'تمييز ★'}</button>
       </div>
     </div>
@@ -4312,10 +4368,10 @@
       <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);border-radius:var(--r-md);padding:11px;text-align:center"><div style="font-size:1.5rem;font-weight:900;color:#f87171">${abs}</div><div style="font-size:.7rem;color:var(--text-muted)">غياب</div></div>
       <div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.15);border-radius:var(--r-md);padding:11px;text-align:center"><div style="font-size:1.5rem;font-weight:900;color:var(--blue-light)">${pres + abs > 0 ? Math.round(pres / (pres + abs) * 100) : 0}%</div><div style="font-size:.7rem;color:var(--text-muted)">نسبة الحضور</div></div>
     </div>
-    <div class="tw"><table><thead><tr><th>التاريخ</th><th>الحالة</th></tr></thead><tbody>${attHist.slice(0, 30).map(a => `<tr><td>${a.d}</td><td><span class="badge ${a.st === 'present' ? 'badge-present' : 'badge-absent'}">${a.st === 'present' ? 'حاضر' : 'غائب'}</span></td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">لا يوجد سجل</td></tr>'}</tbody></table></div>
+    <div class="tw"><table><thead><tr><th>التاريخ</th><th>الحالة</th></tr></thead><tbody>${attHist.slice(0, 30).map(a => `<tr><td>${a.d}</td><td><span class="badge ${a.st === 'present' ? 'badge-present' : 'badge-absent'}">${a.st === 'present' ? 'حاضر' : 'غائب'}</span></td>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">لا يوجد سجل</td></tr>'}</tbody></table></div>
   </div>
   <div class="tab-panel" id="tp-fee-${sid}">
-    <div class="tw"><table><thead><tr><th>الفترة</th><th>المبلغ</th><th>الحالة</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>${feesH.length ? feesH.map(f => `<tr><td>${f.k}</td><td>${f.amount || s.fee || 500} ${db.settings.currency}</td><td><span class="badge ${f.paid ? 'badge-paid' : 'badge-unpaid'}">${f.paid ? 'دفع' : 'لم يدفع'}</span></td><td>${f.date || '—'}</td><td>${f.note || '—'}</td></tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">لا يوجد سجل</td></tr>'}</tbody></table></div>
+    <div class="tw"><table><thead><tr><th>الفترة</th><th>المبلغ</th><th>الحالة</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>${feesH.length ? feesH.map(f => `<tr><td>${f.k}</td><td>${f.amount || s.fee || 500} ${db.settings.currency}</td><td><span class="badge ${f.paid ? 'badge-paid' : 'badge-unpaid'}">${f.paid ? 'دفع' : 'لم يدفع'}</span></td><td>${f.date || '—'}</td><td>${f.note || '—'}</td>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">لا يوجد سجل</td></tr>'}</tbody></table></div>
   </div>
   <div class="tab-panel" id="tp-gr-${sid}">
     <div class="gg">${gradeRows.length ? gradeRows.map(r => `<div class="gt"><div class="gt-lbl">${r.e.name}</div><div class="gt-val" style="color:${r.sc >= r.e.total * .8 ? '#34d399' : r.sc >= r.e.total * .5 ? 'var(--blue-light)' : '#f87171'}">${r.sc}</div><div class="gt-max">/ ${r.e.total}</div><div class="pb"><div class="pf pf-blue" style="width:${r.sc / r.e.total * 100}%"></div></div></div>`).join('') : '<div style="color:var(--text-muted);text-align:center;padding:18px;grid-column:1/-1">لا يوجد درجات</div>'}</div>
@@ -4326,7 +4382,7 @@
   </div>
   <div class="tab-panel" id="tp-rep-${sid}"><div id="rep-preview-prof-${sid}"></div></div>`;
             openM('modal-prof');
-            setTimeout(() => { const rp = document.getElementById(`rep-preview-prof-${sid}`); if (rp) rp.innerHTML = buildStudentReportHTML(sid) }, 100);
+            setTimeout(() => { const rp = document.getElementById(`rep-preview-prof-${sid}`); if (rp) rp.innerHTML = buildStudentReportHTML(sid); }, 100);
         }
         function swTab(btn, panelId) {
             btn.closest('.tabs-nav').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
@@ -4334,7 +4390,7 @@
             if (p) p.querySelectorAll('.tab-panel').forEach(tp => tp.classList.remove('active'));
             const tp = document.getElementById(panelId); if (tp) tp.classList.add('active');
         }
-        function saveNotes(sid) { const s = db.students.find(x => x.id === sid); if (!s) return; const ta = document.getElementById('note-ta-' + sid); if (ta) { s.notes = ta.value; saveDB(); toast('تم حفظ الملاحظات', 'success') } }
+        function saveNotes(sid) { const s = db.students.find(x => x.id === sid); if (!s) return; const ta = document.getElementById('note-ta-' + sid); if (ta) { s.notes = ta.value; saveDB(); toast('تم حفظ الملاحظات', 'success'); } }
 
         // ============================================================ FULL STUDENT REPORT ============================================================
         function buildStudentReportHTML(sid) {
@@ -4343,7 +4399,7 @@
             let pres = 0, abs = 0; Object.values(db.attendance).forEach(d => { if (d[sid] === 'present') pres++; if (d[sid] === 'absent') abs++; });
             const attPct = pres + abs > 0 ? Math.round(pres / (pres + abs) * 100) : 0;
             let paidMonths = 0, totalPaid = 0, unpaidList = [];
-            Object.entries(db.fees).forEach(([k, m]) => { if (m[sid]?.paid) { paidMonths++; totalPaid += (m[sid].amount || s.fee || 500) } else { const mn = parseInt(k.split('-')[1]); unpaidList.push(months[mn - 1] || k) } });
+            Object.entries(db.fees).forEach(([k, m]) => { if (m[sid]?.paid) { paidMonths++; totalPaid += (m[sid].amount || s.fee || 500); } else { const mn = parseInt(k.split('-')[1]); unpaidList.push(months[mn - 1] || k); } });
             const gradeRows = db.exams.map(e => ({ e, sc: db.grades[e.id]?.[sid] })).filter(r => r.sc !== undefined);
             const avgGrade = gradeRows.length ? Math.round(gradeRows.reduce((a, r) => a + r.sc / r.e.total * 100, 0) / gradeRows.length) : 0;
             return `<div class="report-card">
@@ -4381,7 +4437,7 @@
       <div class="rs-title">سجل الدرجات</div>
       <div class="ir"><span class="irl">متوسط الدرجات</span><span class="irv" style="color:${avgGrade >= 80 ? '#34d399' : avgGrade >= 50 ? 'var(--blue-light)' : '#f87171'}">${avgGrade}%</span></div>
       ${gradeRows.map(r => `<div class="ir"><span class="irl">${r.e.name}</span><span class="irv">${r.sc} / ${r.e.total} <span style="font-size:.7rem;color:var(--text-muted)">(${Math.round(r.sc / r.e.total * 100)}%)</span></span></div>`).join('')}
-    </div>`: ''}
+    </div>` : ''}
     ${s.notes ? `<div class="report-section"><div class="rs-title">ملاحظات</div><div style="font-size:.82rem;line-height:1.7">${s.notes}</div></div>` : ''}
     <div style="font-size:.7rem;color:var(--text-muted);text-align:center;margin-top:10px">طُبع بتاريخ: ${nowStr()} — CodeveraSt v4</div>
   </div>`;
@@ -4390,7 +4446,7 @@
             const s = db.students.find(x => x.id === sid); if (!s) return;
             const cls = db.classes.find(c => c.id === s.classId), grp = db.groups.find(g => g.id === s.groupId);
             let pres = 0, abs = 0; Object.values(db.attendance).forEach(d => { if (d[sid] === 'present') pres++; if (d[sid] === 'absent') abs++; });
-            let paid = 0, tot = 0; Object.values(db.fees).forEach(m => { if (m[sid]?.paid) { paid++; tot += (m[sid].amount || s.fee || 500) } });
+            let paid = 0, tot = 0; Object.values(db.fees).forEach(m => { if (m[sid]?.paid) { paid++; tot += (m[sid].amount || s.fee || 500); } });
             const grades = db.exams.map(e => ({ e, sc: db.grades[e.id]?.[sid] })).filter(r => r.sc !== undefined);
             const w = window.open('', '_blank');
             w.document.write(`<html><head><title>تقرير ${s.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');body{font-family:Cairo,sans-serif;margin:28px;color:#1e293b;direction:rtl;background:#fff}h1{color:#2563eb;border-bottom:3px solid #2563eb;padding-bottom:9px;margin-bottom:18px}h2{color:#475569;font-size:.95rem;margin-top:16px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #e2e8f0}table{width:100%;border-collapse:collapse;margin:10px 0}td,th{border:1px solid #e2e8f0;padding:8px 12px;text-align:right}th{background:#f0f6ff;font-weight:700;color:#475569;font-size:.83rem}footer{margin-top:24px;font-size:.75rem;color:#94a3b8;text-align:center}@media print{body{margin:0}}</style></head><body>
@@ -4407,65 +4463,101 @@
     <script>window.onload=()=>window.print()<\/script></body></html>`);
         }
 
-        // ============================================================ SCANNER (QR → ATTENDANCE) ============================================================
-        function openScanner() { openM('modal-scan'); scanHistory = []; renderScanHistory(); startCam() }
-        function startCam() {
-            if (!navigator.mediaDevices?.getUserMedia) { showManScan(); return }
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
-                scanStream = stream; const v = document.getElementById('scan-v'); v.srcObject = stream; v.play(); startQR(v);
-            }).catch(() => showManScan())
+        // ============================================================ WHATSAPP MESSAGES (تعمل 100%) ============================================================
+        function buildWhatsAppMessage(student, tmpl, custom) {
+            const cls = db.classes.find(c => c.id === student.classId);
+            const grp = db.groups.find(g => g.id === student.groupId);
+            const todayDate = today();
+            const attendance = db.attendance[todayDate]?.[student.id] || 'غير محدد';
+            const currentMonth = new Date().getMonth() + 1;
+            const currentYear = new Date().getFullYear();
+            const feeKey = `${currentYear}-${currentMonth}`;
+            const feeStatus = db.fees[feeKey]?.[student.id]?.paid ? 'مدفوع' : 'غير مدفوع';
+            
+            let message = '';
+            switch(tmpl) {
+                case 'report':
+                    message = `📋 *تقرير الطالب ${student.name}*\n\n🆔 الرقم: ${student.id}\n📚 الصف: ${cls?.name || '—'}\n👥 المجموعة: ${grp?.name || '—'}\n⏰ مواعيد الحصص: ${grp?.time || '—'}\n👨‍👦 ولي الأمر: ${student.parent || '—'}\n📞 الهاتف: ${student.parentPhone || '—'}\n💰 المصاريف الشهرية: ${student.fee || 500} جنيه\n✅ حالة هذا الشهر: ${feeStatus}\n📅 حضور اليوم (${todayDate}): ${attendance === 'present' ? '✅ حاضر' : attendance === 'absent' ? '❌ غائب' : '⚠️ غير محدد'}\n\n📅 التاريخ: ${todayDate}\n🖥️ *نظام CodeveraSt لإدارة الطلاب*`;
+                    break;
+                case 'fee':
+                    message = `💰 *تذكير بسداد المصاريف*\n\nالسلام عليكم ولي أمر الطالب ${student.name}\n\nنود تذكيركم بأنه لم يتم سداد مصاريف شهر ${months[currentMonth - 1]} الحالي.\nالمبلغ المستحق: ${student.fee || 500} جنيه\n\nالرجاء التكرم بالسداد في أقرب وقت.\n\nشكراً لتعاونكم.\n\n📅 التاريخ: ${todayDate}\n🖥️ *نظام CodeveraSt*`;
+                    break;
+                case 'attendance':
+                    const attStatus = attendance === 'present' ? '✅ حاضر' : attendance === 'absent' ? '❌ غائب' : '⚠️ لم يتم تسجيل الحضور بعد';
+                    message = `📅 *تقرير حضور الطالب ${student.name}*\n\n📆 التاريخ: ${todayDate}\n📊 حالة الحضور: ${attStatus}\n\n${attendance === 'absent' ? '⚠️ نأمل متابعة حضور الطالب بانتظام.\n\n' : ''}🖥️ *نظام CodeveraSt*`;
+                    break;
+                case 'custom':
+                    message = custom.replace(/{name}/g, student.name).replace(/{class}/g, cls?.name || '').replace(/{group}/g, grp?.name || '').replace(/{parent}/g, student.parent || '').replace(/{phone}/g, student.parentPhone || '').replace(/{fee}/g, student.fee || 500).replace(/{date}/g, todayDate);
+                    break;
+                default:
+                    message = `مرحباً ولي أمر الطالب ${student.name}\nتم إرسال هذه الرسالة من نظام CodeveraSt.`;
+            }
+            return message;
         }
-        function showManScan() {
-            document.getElementById('scan-manual').innerHTML = `<div class="notice info" style="margin-top:8px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>الكاميرا غير متاحة — أدخل ID يدوياً</div><div style="display:flex;gap:7px;margin-top:7px"><input type="text" id="man-id" placeholder="مثال: S001" style="flex:1;padding:8px 11px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:var(--r-md);color:var(--text-main);font-family:Cairo,sans-serif"><button class="btn btn-primary btn-sm" onclick="handleQR(document.getElementById('man-id').value)">تأكيد حضور</button></div>`;
+
+        function sendQuickWA(studentId) {
+            const student = db.students.find(s => s.id === studentId);
+            if (!student || !student.parentPhone) {
+                toast('لا يوجد رقم واتساب مسجل لهذا الطالب', 'error');
+                return;
+            }
+            const tmpl = document.getElementById('msg-tmpl')?.value || 'report';
+            const custom = document.getElementById('msg-custom')?.value || '';
+            const message = buildWhatsAppMessage(student, tmpl, custom);
+            let phone = student.parentPhone.replace(/^0/, '2').replace(/[^0-9]/g, '');
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+            toast(`✅ تم فتح محادثة واتساب مع ولي أمر ${student.name}`, 'success');
+            addAct(`إرسال واتساب سريع لـ ${student.name}`);
         }
-        function startQR(v) {
-            if ('BarcodeDetector' in window) {
-                const det = new BarcodeDetector({ formats: ['qr_code'] });
-                scanInt = setInterval(async () => { try { const bc = await det.detect(v); if (bc.length) handleQR(bc[0].rawValue) } catch (e) { } }, 600);
-            } else showManScan();
+
+        async function sendMsgBulk() {
+            const stus = getMsgTargets();
+            if (!stus.length) {
+                toast('لا يوجد طلاب مستهدفون', 'warning');
+                return;
+            }
+            const validStudents = stus.filter(s => s.parentPhone && s.parentPhone.trim() !== '');
+            if (validStudents.length === 0) {
+                toast('لا توجد أرقام واتساب مسجلة للطلاب المستهدفين', 'error');
+                return;
+            }
+            const tmpl = document.getElementById('msg-tmpl')?.value || 'report';
+            const custom = document.getElementById('msg-custom')?.value || '';
+            
+            const choice = confirm(
+                `📱 إرسال رسائل واتساب لـ ${validStudents.length} ولي أمر\n\n` +
+                `اختر طريقة الإرسال:\n` +
+                `• "موافق" → فتح المحادثات واحدة تلو الأخرى (تلقائي)\n` +
+                `• "إلغاء" → نسخ الرسائل للصقها يدوياً`
+            );
+            
+            if (choice === false) {
+                let allMessages = `📋 *رسائل واتساب لأولياء الأمور* (${validStudents.length} رسالة)\n═══════════════════════════════════\n\n`;
+                validStudents.forEach((s, idx) => {
+                    const message = buildWhatsAppMessage(s, tmpl, custom);
+                    allMessages += `👨‍🎓 *الطالب ${idx + 1}: ${s.name}* (${s.parentPhone})\n───────────────────\n${message}\n\n═══════════════════════════════════\n\n`;
+                });
+                navigator.clipboard.writeText(allMessages);
+                toast(`✅ تم نسخ ${validStudents.length} رسالة\nيمكنك لصقها في واتساب ويب`, 'success');
+                return;
+            }
+            
+            for (let i = 0; i < validStudents.length; i++) {
+                const s = validStudents[i];
+                const message = buildWhatsAppMessage(s, tmpl, custom);
+                let phone = s.parentPhone.replace(/^0/, '2').replace(/[^0-9]/g, '');
+                const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                setTimeout(() => { window.open(whatsappUrl, '_blank'); }, i * 600);
+                addAct(`إرسال واتساب لـ ${s.name}`);
+            }
+            toast(`✅ تم فتح ${validStudents.length} محادثة واتساب\nيمكنك إرسال كل رسالة يدوياً`, 'success');
         }
-        function handleQR(raw) {
-            try {
-                let sid; try { const d = JSON.parse(raw); sid = d.id } catch { sid = raw.trim() }
-                // Prevent duplicate in same session
-                if (scanHistory.find(h => h.id === sid && h.success)) {
-                    const r = document.getElementById('scan-res'); r.className = 'scan-result'; r.style.display = 'block'; r.textContent = '⚠️ تم تسجيل الحضور مسبقاً في هذه الجلسة';
-                    setTimeout(() => { if (r) r.style.display = 'none' }, 2000); return;
-                }
-                const s = db.students.find(x => x.id === sid);
-                if (s) {
-                    const d = document.getElementById('att-d')?.value || today();
-                    if (!db.attendance[d]) db.attendance[d] = {};
-                    db.attendance[d][s.id] = 'present';
-                    saveDB();
-                    scanHistory.unshift({ id: s.id, name: s.name, time: new Date().toLocaleTimeString('ar-EG'), success: true });
-                    const r = document.getElementById('scan-res'); r.className = 'scan-result'; r.style.display = 'block'; r.textContent = `✅ حضور: ${s.name} — ${new Date().toLocaleTimeString('ar-EG')}`;
-                    toast(`✅ حضور: ${s.name}`, 'success');
-                    addAct(`مسح QR — حضور: ${s.name}`);
-                    renderDash(); if (attCache.d === d) renderAtt();
-                    renderScanHistory();
-                    setTimeout(() => { if (r) r.style.display = 'none' }, 3000);
-                } else {
-                    scanHistory.unshift({ id: sid, name: 'غير معروف', time: new Date().toLocaleTimeString('ar-EG'), success: false });
-                    const r = document.getElementById('scan-res'); r.className = 'scan-result err'; r.style.display = 'block'; r.textContent = `❌ لم يُعثر على طالب: ${sid}`;
-                    toast(`لم يُعثر على طالب: ${sid}`, 'error');
-                    renderScanHistory();
-                    setTimeout(() => { if (r) r.style.display = 'none' }, 2500);
-                }
-            } catch (e) { toast('خطأ في قراءة QR', 'error') }
-        }
-        function renderScanHistory() {
-            const el = document.getElementById('scan-history'); if (!el) return;
-            if (!scanHistory.length) { el.innerHTML = ''; return }
-            el.innerHTML = `<div style="font-size:.74rem;font-weight:800;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">سجل هذه الجلسة</div>${scanHistory.slice(0, 8).map(h => `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border);font-size:.77rem"><span style="color:${h.success ? '#34d399' : '#f87171'}">${h.success ? '✅' : '❌'}</span><span style="flex:1;font-weight:700">${h.name}</span><span style="color:var(--text-muted)">${h.time}</span></div>`).join('')}`;
-        }
-        function closeScanner() { if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null } if (scanInt) { clearInterval(scanInt); scanInt = null } closeM('modal-scan') }
 
         // ============================================================ FEES ============================================================
         function loadFees() {
             const mo = document.getElementById('fee-m')?.value, yr = document.getElementById('fee-y')?.value, cls = document.getElementById('fee-cls')?.value || '', grp = document.getElementById('fee-grp')?.value || '', q = (document.getElementById('fee-q')?.value || '').toLowerCase(), sf = document.getElementById('fee-sf')?.value || 'all';
             if (!mo || !yr) return; const key = `${yr}-${mo}`; if (!db.fees[key]) db.fees[key] = {}; const fm = db.fees[key];
-            let stus = db.students.filter(s => { if (cls && s.classId !== cls) return false; if (grp && s.groupId !== grp) return false; if (q && !s.name.toLowerCase().includes(q) && !s.id.toLowerCase().includes(q)) return false; if (sf === 'paid' && !fm[s.id]?.paid) return false; if (sf === 'unpaid' && fm[s.id]?.paid) return false; return true });
+            let stus = db.students.filter(s => { if (cls && s.classId !== cls) return false; if (grp && s.groupId !== grp) return false; if (q && !s.name.toLowerCase().includes(q) && !s.id.toLowerCase().includes(q)) return false; if (sf === 'paid' && !fm[s.id]?.paid) return false; if (sf === 'unpaid' && fm[s.id]?.paid) return false; return true; });
             const base = db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp));
             const paid = base.filter(s => fm[s.id]?.paid), unpaid = base.filter(s => !fm[s.id]?.paid);
             const tot = paid.reduce((sum, s) => sum + (fm[s.id]?.amount || s.fee || db.settings.defaultFee), 0);
@@ -4474,50 +4566,50 @@
             document.getElementById('fee-tbody').innerHTML = stus.map(s => {
                 const f = fm[s.id] || {}, amt = f.amount || s.fee || db.settings.defaultFee;
                 const c2 = db.classes.find(c => c.id === s.classId), g2 = db.groups.find(g => g.id === s.groupId);
-                return `<tr><td><input type="checkbox" onchange="feeRowSel(this)"></td><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:26px;height:26px;font-size:.7rem">${s.name.charAt(0)}</div><span style="font-size:.82rem;font-weight:700">${s.name}</span></div></td><td><span class="badge badge-blue">${s.id}</span></td><td style="font-size:.78rem">${c2?.name || ''}${g2 ? ' / ' + g2.name : ''}</td><td><input type="number" value="${amt}" style="width:70px;padding:3px 7px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:5px;color:var(--text-main);font-family:Cairo,sans-serif;font-size:.78rem" onchange="setFeeAmt('${s.id}','${key}',this.value)"></td><td><span class="badge ${f.paid ? 'badge-paid' : 'badge-unpaid'}">${f.paid ? 'دفع' : 'لم يدفع'}</span></td><td style="font-size:.76rem;color:var(--text-muted)">${f.date || '—'}</td><td><input type="text" value="${f.note || ''}" placeholder="ملاحظة..." style="width:85px;padding:3px 7px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:5px;color:var(--text-main);font-family:Cairo,sans-serif;font-size:.74rem" onchange="setFeeNote('${s.id}','${key}',this.value)"></td><td><div style="display:flex;gap:3px">${f.paid ? `<button class="btn btn-danger btn-xs" onclick="toggleFee('${s.id}','${key}',false)">إلغاء</button>` : `<button class="btn btn-success btn-xs" onclick="toggleFee('${s.id}','${key}',true)">دفع</button>`}${s.parentPhone ? `<button class="wa-btn" onclick="sendWA('${s.id}','fee')"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>تذكير</button>` : ''}</div></td></tr>`;
+                return `<tr><td><input type="checkbox" onchange="feeRowSel(this)"></td><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:26px;height:26px;font-size:.7rem">${s.name.charAt(0)}</div><span style="font-size:.82rem;font-weight:700">${s.name}</span></div></div></td><td><span class="badge badge-blue">${s.id}</span></td><td style="font-size:.78rem">${c2?.name || ''}${g2 ? ' / ' + g2.name : ''}</td><td><input type="number" value="${amt}" style="width:70px;padding:3px 7px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:5px;color:var(--text-main);font-family:Cairo,sans-serif;font-size:.78rem" onchange="setFeeAmt('${s.id}','${key}',this.value)"></div></div></td><td><span class="badge ${f.paid ? 'badge-paid' : 'badge-unpaid'}">${f.paid ? 'دفع' : 'لم يدفع'}</span></td><td style="font-size:.76rem;color:var(--text-muted)">${f.date || '—'} </div></div></td><td><input type="text" value="${f.note || ''}" placeholder="ملاحظة..." style="width:85px;padding:3px 7px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:5px;color:var(--text-main);font-family:Cairo,sans-serif;font-size:.74rem" onchange="setFeeNote('${s.id}','${key}',this.value)"> </div></div></td><td><div style="display:flex;gap:3px">${f.paid ? `<button class="btn btn-danger btn-xs" onclick="toggleFee('${s.id}','${key}',false)">إلغاء</button>` : `<button class="btn btn-success btn-xs" onclick="toggleFee('${s.id}','${key}',true)">دفع</button>`}${s.parentPhone ? `<button class="wa-btn" onclick="sendQuickWA('${s.id}')" style="font-size:.65rem;padding:2px 6px">واتساب</button>` : ''}</div> </div></td></tr>`;
             }).join('');
             updateFeeBulk();
         }
-        function toggleFee(sid, key, paid) { if (!db.fees[key]) db.fees[key] = {}; if (!db.fees[key][sid]) db.fees[key][sid] = {}; const s = db.students.find(x => x.id === sid); db.fees[key][sid].paid = paid; db.fees[key][sid].date = paid ? today() : ''; db.fees[key][sid].amount = db.fees[key][sid].amount || s?.fee || db.settings.defaultFee; saveDB(); loadFees(); renderDash(); const mn = parseInt(key.split('-')[1]); addAct(`${paid ? 'دفع' : 'إلغاء'}: ${s?.name} — ${months[mn - 1] || key}`); toast(paid ? `دفع ${s?.name}` : `إلغاء دفع ${s?.name}`, paid ? 'success' : 'info') }
-        function setFeeAmt(sid, key, v) { if (!db.fees[key]) db.fees[key] = {}; if (!db.fees[key][sid]) db.fees[key][sid] = {}; db.fees[key][sid].amount = parseInt(v) || 0; saveDB() }
-        function setFeeNote(sid, key, v) { if (!db.fees[key]) db.fees[key] = {}; if (!db.fees[key][sid]) db.fees[key][sid] = {}; db.fees[key][sid].note = v; saveDB() }
-        function feeSelAll(v) { document.querySelectorAll('#fee-tbody input[type=checkbox]').forEach(c => c.checked = v); updateFeeBulk() }
-        function feeRowSel() { updateFeeBulk() }
-        function updateFeeBulk() { const n = document.querySelectorAll('#fee-tbody input[type=checkbox]:checked').length; const b = document.getElementById('fee-bulk'); if (n > 0) { b.style.display = 'flex'; document.getElementById('fee-cnt').textContent = `${n} محدد` } else b.style.display = 'none' }
-        function feeBulkPay(paid) { const mo = document.getElementById('fee-m')?.value, yr = document.getElementById('fee-y')?.value; const key = `${yr}-${mo}`; if (!db.fees[key]) db.fees[key] = {}; const cbs = document.querySelectorAll('#fee-tbody input[type=checkbox]:checked'); let cnt = 0; cbs.forEach(cb => { const row = cb.closest('tr'), badge = row.querySelector('.badge-blue'); if (!badge) return; const sid = badge.textContent.trim(), s = db.students.find(x => x.id === sid); if (!s) return; if (!db.fees[key][sid]) db.fees[key][sid] = {}; db.fees[key][sid].paid = paid; db.fees[key][sid].date = paid ? today() : ''; db.fees[key][sid].amount = db.fees[key][sid].amount || s.fee || db.settings.defaultFee; cnt++ }); saveDB(); loadFees(); renderDash(); toast(`${paid ? 'دفع' : 'إلغاء'} ${cnt} طالب`, paid ? 'success' : 'info'); addAct(`${paid ? 'دفع' : 'إلغاء'} جماعي: ${cnt} طالب`) }
+        function toggleFee(sid, key, paid) { if (!db.fees[key]) db.fees[key] = {}; if (!db.fees[key][sid]) db.fees[key][sid] = {}; const s = db.students.find(x => x.id === sid); db.fees[key][sid].paid = paid; db.fees[key][sid].date = paid ? today() : ''; db.fees[key][sid].amount = db.fees[key][sid].amount || s?.fee || db.settings.defaultFee; saveDB(); loadFees(); renderDash(); const mn = parseInt(key.split('-')[1]); addAct(`${paid ? 'دفع' : 'إلغاء'}: ${s?.name} — ${months[mn - 1] || key}`); toast(paid ? `دفع ${s?.name}` : `إلغاء دفع ${s?.name}`, paid ? 'success' : 'info'); }
+        function setFeeAmt(sid, key, v) { if (!db.fees[key]) db.fees[key] = {}; if (!db.fees[key][sid]) db.fees[key][sid] = {}; db.fees[key][sid].amount = parseInt(v) || 0; saveDB(); }
+        function setFeeNote(sid, key, v) { if (!db.fees[key]) db.fees[key] = {}; if (!db.fees[key][sid]) db.fees[key][sid] = {}; db.fees[key][sid].note = v; saveDB(); }
+        function feeSelAll(v) { document.querySelectorAll('#fee-tbody input[type=checkbox]').forEach(c => c.checked = v); updateFeeBulk(); }
+        function feeRowSel() { updateFeeBulk(); }
+        function updateFeeBulk() { const n = document.querySelectorAll('#fee-tbody input[type=checkbox]:checked').length; const b = document.getElementById('fee-bulk'); if (n > 0) { b.style.display = 'flex'; document.getElementById('fee-cnt').textContent = `${n} محدد`; } else b.style.display = 'none'; }
+        function feeBulkPay(paid) { const mo = document.getElementById('fee-m')?.value, yr = document.getElementById('fee-y')?.value; const key = `${yr}-${mo}`; if (!db.fees[key]) db.fees[key] = {}; const cbs = document.querySelectorAll('#fee-tbody input[type=checkbox]:checked'); let cnt = 0; cbs.forEach(cb => { const row = cb.closest('tr'), badge = row.querySelector('.badge-blue'); if (!badge) return; const sid = badge.textContent.trim(), s = db.students.find(x => x.id === sid); if (!s) return; if (!db.fees[key][sid]) db.fees[key][sid] = {}; db.fees[key][sid].paid = paid; db.fees[key][sid].date = paid ? today() : ''; db.fees[key][sid].amount = db.fees[key][sid].amount || s.fee || db.settings.defaultFee; cnt++; }); saveDB(); loadFees(); renderDash(); toast(`${paid ? 'دفع' : 'إلغاء'} ${cnt} طالب`, paid ? 'success' : 'info'); addAct(`${paid ? 'دفع' : 'إلغاء'} جماعي: ${cnt} طالب`); }
 
         // ============================================================ GRADES ============================================================
-        function openAddExam() { document.getElementById('ex-date').value = today(); openM('modal-exam') }
-        function saveExam() { const name = (document.getElementById('ex-name')?.value || '').trim(); if (!name) { toast('أدخل اسم الامتحان', 'error'); return } db.exams.push({ id: 'ex' + Date.now(), name, total: parseInt(document.getElementById('ex-total')?.value) || 100, date: document.getElementById('ex-date')?.value }); saveDB(); popAllSelects(); loadGrades(); closeM('modal-exam'); toast('تم إضافة الامتحان', 'success'); document.getElementById('ex-name').value = '' }
+        function openAddExam() { document.getElementById('ex-date').value = today(); openM('modal-exam'); }
+        function saveExam() { const name = (document.getElementById('ex-name')?.value || '').trim(); if (!name) { toast('أدخل اسم الامتحان', 'error'); return; } db.exams.push({ id: 'ex' + Date.now(), name, total: parseInt(document.getElementById('ex-total')?.value) || 100, date: document.getElementById('ex-date')?.value }); saveDB(); popAllSelects(); loadGrades(); closeM('modal-exam'); toast('تم إضافة الامتحان', 'success'); document.getElementById('ex-name').value = ''; }
         function loadGrades() {
             const cls = document.getElementById('g-cls')?.value || '', grp = document.getElementById('g-grp')?.value || '', examId = document.getElementById('g-exam')?.value || '';
             const stus = db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp));
             const exams = examId ? db.exams.filter(e => e.id === examId) : db.exams;
-            if (!stus.length || !exams.length) { document.getElementById('grades-c').innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/></svg></div><div class="empty-t">${!exams.length ? 'لا يوجد امتحانات' : 'اختر الصف أو المجموعة'}</div></div>`; return }
-            document.getElementById('grades-c').innerHTML = `<div class="tw"><table><thead><tr><th>الطالب</th>${exams.map(e => `<th>${e.name}<br><span style="font-size:.68rem;color:var(--text-muted)">/${e.total}</span></th>`).join('')}<th>المجموع</th><th>النسبة</th></tr></thead><tbody>${stus.map(s => { const scores = exams.map(e => db.grades[e.id]?.[s.id] ?? ''); const valid = scores.filter(sc => sc !== ''); const totSc = valid.reduce((a, b) => a + Number(b), 0); const totMax = exams.filter((_, i) => scores[i] !== '').reduce((a, e) => a + e.total, 0); const pct = totMax > 0 ? Math.round(totSc / totMax * 100) : 0; return `<tr><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:24px;height:24px;font-size:.68rem">${s.name.charAt(0)}</div><span style="font-size:.81rem;font-weight:700">${s.name}</span></div></td>${exams.map(e => `<td><input type="number" value="${db.grades[e.id]?.[s.id] ?? ''}" min="0" max="${e.total}" placeholder="—" style="width:55px;padding:3px 7px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:5px;color:var(--text-main);font-family:Cairo,sans-serif;font-size:.78rem" onchange="setGrade('${e.id}','${s.id}',this.value)"></td>`).join('')}<td style="font-weight:900;color:var(--blue-light)">${totSc}</td><td><span class="badge ${pct >= 80 ? 'badge-present' : pct >= 50 ? 'badge-sky' : 'badge-absent'}">${pct}%</span></td></tr>` }).join('')}</tbody></table></div>`;
+            if (!stus.length || !exams.length) { document.getElementById('grades-c').innerHTML = `<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/></svg></div><div class="empty-t">${!exams.length ? 'لا يوجد امتحانات' : 'اختر الصف أو المجموعة'}</div></div>`; return; }
+            document.getElementById('grades-c').innerHTML = `<div class="tw"><table><thead><tr><th>الطالب</th>${exams.map(e => `<th>${e.name}<br><span style="font-size:.68rem;color:var(--text-muted)">/${e.total}</span></th>`).join('')}<th>المجموع</th><th>النسبة</th></tr></thead><tbody>${stus.map(s => { const scores = exams.map(e => db.grades[e.id]?.[s.id] ?? ''); const valid = scores.filter(sc => sc !== ''); const totSc = valid.reduce((a, b) => a + Number(b), 0); const totMax = exams.filter((_, i) => scores[i] !== '').reduce((a, e) => a + e.total, 0); const pct = totMax > 0 ? Math.round(totSc / totMax * 100) : 0; return `<tr><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:24px;height:24px;font-size:.68rem">${s.name.charAt(0)}</div><span style="font-size:.81rem;font-weight:700">${s.name}</span></div></td>${exams.map(e => `<td><input type="number" value="${db.grades[e.id]?.[s.id] ?? ''}" min="0" max="${e.total}" placeholder="—" style="width:55px;padding:3px 7px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:5px;color:var(--text-main);font-family:Cairo,sans-serif;font-size:.78rem" onchange="setGrade('${e.id}','${s.id}',this.value)"></td>`).join('')}<td style="font-weight:900;color:var(--blue-light)">${totSc}</td><td><span class="badge ${pct >= 80 ? 'badge-present' : pct >= 50 ? 'badge-sky' : 'badge-absent'}">${pct}%</span></td></tr>`; }).join('')}</tbody></table></div>`;
         }
-        function setGrade(eid, sid, v) { if (!db.grades[eid]) db.grades[eid] = {}; db.grades[eid][sid] = v === '' ? undefined : Number(v); saveDB() }
+        function setGrade(eid, sid, v) { if (!db.grades[eid]) db.grades[eid] = {}; db.grades[eid][sid] = v === '' ? undefined : Number(v); saveDB(); }
 
         // ============================================================ REPORTS PAGE ============================================================
         function renderReportPreview() {
             const type = document.getElementById('rep-type')?.value || 'student';
-            ['rep-stu', 'rep-cls', 'rep-grp'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none' });
+            ['rep-stu', 'rep-cls', 'rep-grp'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
             popAllSelects();
             if (type === 'student') document.getElementById('rep-stu').style.display = 'block';
             if (type === 'class') document.getElementById('rep-cls').style.display = 'block';
-            if (type === 'group') { document.getElementById('rep-cls').style.display = 'block'; document.getElementById('rep-grp').style.display = 'block' }
+            if (type === 'group') { document.getElementById('rep-cls').style.display = 'block'; document.getElementById('rep-grp').style.display = 'block'; }
             const mo = document.getElementById('rep-month')?.value, yr = document.getElementById('rep-year')?.value;
             const container = document.getElementById('report-preview'); if (!container) return;
             if (type === 'student') {
                 const sid = document.getElementById('rep-stu')?.value;
-                if (!sid) { container.innerHTML = '<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div><div class="empty-t">اختر الطالب لعرض التقرير</div></div>'; return }
+                if (!sid) { container.innerHTML = '<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div><div class="empty-t">اختر الطالب لعرض التقرير</div></div>'; return; }
                 container.innerHTML = buildStudentReportHTML(sid);
             } else if (type === 'class' || type === 'group' || type === 'all') {
                 const cls = type === 'all' ? '' : document.getElementById('rep-cls')?.value || '';
                 const grp = type === 'group' ? document.getElementById('rep-grp')?.value || '' : '';
                 const key = `${yr}-${mo}`;
                 const stus = db.students.filter(s => (!cls || s.classId === cls) && (!grp || s.groupId === grp));
-                if (!stus.length) { container.innerHTML = '<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg></div><div class="empty-t">لا يوجد طلاب في هذا الاختيار</div></div>'; return }
+                if (!stus.length) { container.innerHTML = '<div class="empty"><div class="empty-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/></svg></div><div class="empty-t">لا يوجد طلاب في هذا الاختيار</div></div>'; return; }
                 const clsN = db.classes.find(c => c.id === cls)?.name || 'كل الصفوف'; const grpN = db.groups.find(g => g.id === grp)?.name || 'كل المجموعات';
                 const fm = db.fees[key] || {}; const t2 = today(); const am = db.attendance[t2] || {};
                 const paid = stus.filter(s => fm[s.id]?.paid).length; const pres = stus.filter(s => am[s.id] === 'present').length; const abs = stus.filter(s => am[s.id] === 'absent').length;
@@ -4529,12 +4621,12 @@
         <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);border-radius:9px;padding:10px;text-align:center"><div style="font-size:1.4rem;font-weight:900;color:#f87171">${abs}</div><div style="font-size:.68rem;color:var(--text-muted)">غائبون اليوم</div></div>
         <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.15);border-radius:9px;padding:10px;text-align:center"><div style="font-size:1.4rem;font-weight:900;color:var(--gold-light)">${paid}</div><div style="font-size:.68rem;color:var(--text-muted)">دفعوا هذا الشهر</div></div>
       </div>
-      <div class="tw"><table><thead><tr><th>الطالب</th><th>ID</th><th>الصف</th><th>المجموعة</th><th>المصاريف</th><th>حضور اليوم</th></tr></thead><tbody>${stus.map(s => { const c2 = db.classes.find(c => c.id === s.classId), g2 = db.groups.find(g => g.id === s.groupId), fst = fm[s.id]?.paid, att = am[s.id]; return `<tr><td style="font-weight:700">${s.name}</td><td><span class="badge badge-blue">${s.id}</span></td><td style="font-size:.78rem">${c2?.name || '—'}</td><td style="font-size:.78rem">${g2?.name || '—'}</td><td><span class="badge ${fst ? 'badge-paid' : 'badge-unpaid'}">${fst ? 'دفع' : 'لم يدفع'}</span></td><td><span class="badge ${att === 'present' ? 'badge-present' : att === 'absent' ? 'badge-absent' : 'badge-unknown'}">${att === 'present' ? 'حاضر' : att === 'absent' ? 'غائب' : '—'}</span></td></tr>` }).join('')}</tbody></table></div>
+      <div class="tw"><table><thead><tr><th>الطالب</th><th>ID</th><th>الصف</th><th>المجموعة</th><th>المصاريف</th><th>حضور اليوم</th></tr></thead><tbody>${stus.map(s => { const c2 = db.classes.find(c => c.id === s.classId), g2 = db.groups.find(g => g.id === s.groupId), fst = fm[s.id]?.paid, att = am[s.id]; return `<tr><td style="font-weight:700">${s.name}</td><td><span class="badge badge-blue">${s.id}</span></td><td style="font-size:.78rem">${c2?.name || '—'}</td><td style="font-size:.78rem">${g2?.name || '—'}</td><td><span class="badge ${fst ? 'badge-paid' : 'badge-unpaid'}">${fst ? 'دفع' : 'لم يدفع'}</span></td><td><span class="badge ${att === 'present' ? 'badge-present' : att === 'absent' ? 'badge-absent' : 'badge-unknown'}">${att === 'present' ? 'حاضر' : att === 'absent' ? 'غائب' : '—'}</span></td></tr>`; }).join('')}</tbody></table></div>
     </div>`;
             }
         }
-        function exportRepCSV() { const type = document.getElementById('rep-type')?.value || 'student'; if (type === 'student') { const sid = document.getElementById('rep-stu')?.value; if (sid) exportRep('fees'); return } exportRep('fees') }
-        function printReport2() { const c = document.getElementById('report-preview'); if (!c) return; const w = window.open('', '_blank'); w.document.write(`<html><head><title>تقرير</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');body{font-family:Cairo,sans-serif;margin:20px;direction:rtl;color:#1e293b}table{width:100%;border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:7px 10px;text-align:right}th{background:#f0f6ff}@media print{body{margin:0}}</style></head><body>${c.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`) }
+        function exportRepCSV() { const type = document.getElementById('rep-type')?.value || 'student'; if (type === 'student') { const sid = document.getElementById('rep-stu')?.value; if (sid) exportRep('fees'); return; } exportRep('fees'); }
+        function printReport2() { const c = document.getElementById('report-preview'); if (!c) return; const w = window.open('', '_blank'); w.document.write(`<html><head><title>تقرير</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');body{font-family:Cairo,sans-serif;margin:20px;direction:rtl;color:#1e293b}table{width:100%;border-collapse:collapse}td,th{border:1px solid #e2e8f0;padding:7px 10px;text-align:right}th{background:#f0f6ff}@media print{body{margin:0}}</style></head><body>${c.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`); }
 
         // ============================================================ MESSAGES PAGE ============================================================
         function getMsgTargets() {
@@ -4545,120 +4637,85 @@
             const d2 = new Date(), key = `${d2.getFullYear()}-${d2.getMonth() + 1}`, fm = db.fees[key] || {};
             let stus = [];
             if (type === 'all') stus = db.students;
-            else if (type === 'class') {
-                stus = db.students.filter(s => s.classId === cls);
-            } else if (type === 'group') {
-                stus = db.students.filter(s => s.groupId === grp);
-            } else if (type === 'student') {
-                stus = db.students.filter(s => s.id === sid);
-            } else if (type === 'unpaid') {
-                stus = db.students.filter(s => !fm[s.id]?.paid);
-            } else if (type === 'absent') {
-                stus = db.students.filter(s => am[s.id] === 'absent');
-            } else if (type === 'present') {
-                stus = db.students.filter(s => am[s.id] === 'present');
-            }
+            else if (type === 'class') stus = db.students.filter(s => s.classId === cls);
+            else if (type === 'group') stus = db.students.filter(s => s.groupId === grp);
+            else if (type === 'student') stus = db.students.filter(s => s.id === sid);
+            else if (type === 'unpaid') stus = db.students.filter(s => !fm[s.id]?.paid);
+            else if (type === 'absent') stus = db.students.filter(s => am[s.id] === 'absent');
+            else if (type === 'present') stus = db.students.filter(s => am[s.id] === 'present');
             return stus;
         }
-
         function updateMsgOptions() {
             const type = document.getElementById('msg-type')?.value || 'all';
             const opts = document.getElementById('msg-opts');
             if (!opts) return;
             let html = '';
-            if (type === 'class') {
-                html = `<div class="field"><label>اختر الصف</label><select id="msg-cls" onchange="buildMsgPreview()"><option value="">اختر الصف</option>${db.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>`;
-            } else if (type === 'group') {
-                html = `<div class="field"><label>اختر المجموعة</label><select id="msg-grp" onchange="buildMsgPreview()"><option value="">اختر المجموعة</option>${db.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}</select></div>`;
-            } else if (type === 'student') {
-                html = `<div class="field"><label>اختر الطالب</label><select id="msg-stu" onchange="buildMsgPreview()"><option value="">اختر الطالب</option>${db.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></div>`;
-            }
+            if (type === 'class') { html = `<div class="field"><label>اختر الصف</label><select id="msg-cls" onchange="buildMsgPreview()"><option value="">اختر الصف</option>${db.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>`; }
+            else if (type === 'group') { html = `<div class="field"><label>اختر المجموعة</label><select id="msg-grp" onchange="buildMsgPreview()"><option value="">اختر المجموعة</option>${db.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}</select></div>`; }
+            else if (type === 'student') { html = `<div class="field"><label>اختر الطالب</label><select id="msg-stu" onchange="buildMsgPreview()"><option value="">اختر الطالب</option>${db.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></div>`; }
             opts.innerHTML = html;
             buildMsgPreview();
             renderMsgTargets();
         }
-
         function buildMsgPreview() {
             const stus = getMsgTargets();
             const tmpl = document.getElementById('msg-tmpl')?.value || 'report';
             const custom = document.getElementById('msg-custom')?.value || '';
             const prev = document.getElementById('msg-preview');
             if (!prev) return;
-            if (!stus.length) {
-                prev.textContent = 'لا يوجد طلاب مستهدفون';
-                return;
-            }
+            if (!stus.length) { prev.textContent = 'لا يوجد طلاب مستهدفون'; return; }
             const s = stus[0];
-            let msg = '';
-            if (tmpl === 'report') {
-                msg = `تقرير الطالب ${s.name}\nالصف: ${(db.classes.find(c => c.id === s.classId)?.name) || '—'}\nالمجموعة: ${(db.groups.find(g => g.id === s.groupId)?.name) || '—'}\nالحالة: ${s.status === 'active' ? 'نشط' : 'موقوف'}`;
-            } else if (tmpl === 'fee') {
-                msg = `تنبيه: لم يتم دفع المصاريف الشهرية للطالب ${s.name} (${s.id})\nيرجى السداد في أقرب وقت.`;
-            } else if (tmpl === 'attendance') {
-                const t = today(), am = db.attendance[t] || {};
-                const st = am[s.id] === 'present' ? 'حاضر' : am[s.id] === 'absent' ? 'غائب' : 'غير محدد';
-                msg = `تقرير حضور اليوم للطالب ${s.name} (${s.id}): ${st}`;
-            } else if (tmpl === 'custom') {
-                msg = custom.replace(/{name}/g, s.name).replace(/{class}/g, (db.classes.find(c => c.id === s.classId)?.name) || '');
-            }
+            let msg = buildWhatsAppMessage(s, tmpl, custom);
             prev.textContent = msg;
             document.getElementById('msg-custom-wrap').style.display = tmpl === 'custom' ? '' : 'none';
             renderMsgTargets();
         }
-
         function renderMsgTargets() {
             const stus = getMsgTargets();
             const el = document.getElementById('msg-targets');
             if (!el) return;
-            if (!stus.length) {
-                el.innerHTML = '<div style="color:var(--text-muted);font-size:.85rem;padding:12px">لا يوجد طلاب مستهدفون</div>';
-                return;
-            }
-            el.innerHTML = stus.map(s => `<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;align-items:center;gap:8px"><span class="sc-av" style="width:22px;height:22px;font-size:.7rem">${s.name.charAt(0)}</span><span style="flex:1">${s.name}</span><span style="color:var(--text-muted);font-size:.75rem">${s.id}</span></div>`).join('');
+            if (!stus.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:.85rem;padding:12px">لا يوجد طلاب مستهدفون</div>'; return; }
+            el.innerHTML = stus.map(s => `<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;align-items:center;gap:8px"><span class="sc-av" style="width:22px;height:22px;font-size:.7rem">${s.name.charAt(0)}</span><span style="flex:1">${s.name}</span><span style="color:var(--text-muted);font-size:.75rem">${s.id}</span>${s.parentPhone ? `<button class="wa-btn" onclick="sendQuickWA('${s.id}')" style="font-size:.65rem;padding:2px 6px">واتساب</button>` : ''}</div>`).join('');
         }
 
-        function sendMsgBulk() {
-            const stus = getMsgTargets();
-            if (!stus.length) {
-                toast('لا يوجد طلاب مستهدفون', 'warning');
-                return;
+        // ============================================================ RECORDS ============================================================
+        function loadRec() {
+            const t = document.getElementById('rec-t')?.value || 'all';
+            const from = document.getElementById('rec-from')?.value || '';
+            const to = document.getElementById('rec-to')?.value || '';
+            const cls = document.getElementById('rec-cls')?.value || '';
+            let items = [];
+            if (t === 'all' || t === 'attendance') {
+                Object.entries(db.attendance).forEach(([d, m]) => { if ((!from || d >= from) && (!to || d <= to)) { Object.entries(m).forEach(([sid, st]) => { const s = db.students.find(x => x.id === sid); if (s && (!cls || s.classId === cls)) items.push({ date: d, type: 'attendance', student: s.name, sid, status: st }); }); } });
             }
-            const tmpl = document.getElementById('msg-tmpl')?.value || 'report';
-            const custom = document.getElementById('msg-custom')?.value || '';
-            stus.forEach(s => {
-                let msg = '';
-                if (tmpl === 'report') {
-                    msg = `تقرير الطالب ${s.name}\nالصف: ${(db.classes.find(c => c.id === s.classId)?.name) || '—'}\nالمجموعة: ${(db.groups.find(g => g.id === s.groupId)?.name) || '—'}\nالحالة: ${s.status === 'active' ? 'نشط' : 'موقوف'}`;
-                } else if (tmpl === 'fee') {
-                    msg = `تنبيه: لم يتم دفع المصاريف الشهرية للطالب ${s.name} (${s.id})\nيرجى السداد في أقرب وقت.`;
-                } else if (tmpl === 'attendance') {
-                    const t = today(), am = db.attendance[t] || {};
-                    const st = am[s.id] === 'present' ? 'حاضر' : am[s.id] === 'absent' ? 'غائب' : 'غير محدد';
-                    msg = `تقرير حضور اليوم للطالب ${s.name} (${s.id}): ${st}`;
-                } else if (tmpl === 'custom') {
-                    msg = custom.replace(/{name}/g, s.name).replace(/{class}/g, (db.classes.find(c => c.id === s.classId)?.name) || '');
-                }
-                if (s.parentPhone) {
-                    const url = `https://wa.me/${s.parentPhone.replace(/^0/, '2')}/?text=${encodeURIComponent(msg)}`;
-                    window.open(url, '_blank');
-                }
-            });
-            toast('تم فتح واتساب للرسائل', 'success');
+            if (t === 'all' || t === 'fees') {
+                Object.entries(db.fees).forEach(([k, m]) => { const [year, month] = k.split('-'); const date = `${year}-${month}-01`; if ((!from || date >= from) && (!to || date <= to)) { Object.entries(m).forEach(([sid, f]) => { const s = db.students.find(x => x.id === sid); if (s && (!cls || s.classId === cls)) items.push({ date: k, type: 'fees', student: s.name, sid, paid: f.paid, amount: f.amount }); }); } });
+            }
+            items.sort((a, b) => b.date.localeCompare(a.date));
+            const container = document.getElementById('rec-c');
+            if (!items.length) { container.innerHTML = '<div class="empty"><div class="empty-t">لا توجد سجلات مطابقة</div><div class="empty-s">جرب تغيير معايير البحث</div></div>'; return; }
+            container.innerHTML = `<div class="tw"><table><thead><tr><th>التاريخ</th><th>الطالب</th><th>النوع</th><th>التفاصيل</th></tr></thead><tbody>${items.map(i => `<tr><td style="white-space:nowrap">${i.date}</td><td><div style="display:flex;align-items:center;gap:7px"><div class="sc-av" style="width:24px;height:24px;font-size:.7rem">${i.student.charAt(0)}</div>${i.student}</div></td><td>${i.type === 'attendance' ? '📋 حضور' : '💰 مصاريف'}</td><td>${i.type === 'attendance' ? (i.status === 'present' ? '✅ حاضر' : '❌ غائب') : (i.paid ? `✅ دفع ${i.amount} جنيه` : '❌ لم يدفع')}</span></td></tr>`).join('')}</tbody></table></div>`;
         }
+        function exportRec() { toast('يمكنك تصدير CSV من صفحة التقارير', 'info'); }
 
-        // ============================================================ WHATSAPP BUTTON FOR STUDENT ============================================================
-        function sendWA(sid, type = 'report') {
-            const s = db.students.find(x => x.id === sid);
-            if (!s || !s.parentPhone) return;
-            let msg = '';
-            if (type === 'report') {
-                msg = `تقرير الطالب ${s.name}\nالصف: ${(db.classes.find(c => c.id === s.classId)?.name) || '—'}\nالمجموعة: ${(db.groups.find(g => g.id === s.groupId)?.name) || '—'}\nالحالة: ${s.status === 'active' ? 'نشط' : 'موقوف'}`;
-            } else if (type === 'fee') {
-                msg = `تنبيه: لم يتم دفع المصاريف الشهرية للطالب ${s.name} (${s.id})\nيرجى السداد في أقرب وقت.`;
-            }
-            const url = `https://wa.me/${s.parentPhone.replace(/^0/, '2')}/?text=${encodeURIComponent(msg)}`;
-            window.open(url, '_blank');
+        // ============================================================ GROUPS ============================================================
+        function renderGroups() {
+            const clsDiv = document.getElementById('cls-list'); if (clsDiv) clsDiv.innerHTML = db.classes.map(c => `<div style="padding:9px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:800;font-size:.85rem">${c.name}</div><div style="font-size:.7rem;color:var(--text-muted)">${c.desc || ''}</div></div><button class="btn-icon btn-xs" onclick="editClass('${c.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>`).join('');
+            const grpDiv = document.getElementById('grp-list'); if (grpDiv) grpDiv.innerHTML = db.groups.map(g => { const c = db.classes.find(x => x.id === g.classId); return `<div style="padding:9px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:800;font-size:.85rem">${g.name}</div><div style="font-size:.7rem;color:var(--text-muted)">${c?.name || '—'} | ${g.time || ''}</div></div><button class="btn-icon btn-xs" onclick="editGroup('${g.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>`; }).join('');
         }
+        function openAddClass() { document.getElementById('cls-name').value = ''; document.getElementById('cls-fee').value = ''; document.getElementById('cls-desc').value = ''; openM('modal-cls'); }
+        function saveCls() { const name = (document.getElementById('cls-name')?.value || '').trim(); if (!name) { toast('أدخل اسم الصف', 'error'); return; } db.classes.push({ id: 'c' + Date.now(), name, fee: parseInt(document.getElementById('cls-fee')?.value) || 0, desc: document.getElementById('cls-desc')?.value || '' }); saveDB(); renderGroups(); popAllSelects(); closeM('modal-cls'); toast('تم إضافة الصف', 'success'); }
+        function openAddGroup() { document.getElementById('grp-name').value = ''; document.getElementById('grp-time').value = ''; document.getElementById('grp-cap').value = ''; popAllSelects(); openM('modal-grp'); }
+        function saveGrp() { const name = (document.getElementById('grp-name')?.value || '').trim(); if (!name) { toast('أدخل اسم المجموعة', 'error'); return; } db.groups.push({ id: 'g' + Date.now(), name, classId: document.getElementById('grp-cls')?.value || '', time: document.getElementById('grp-time')?.value || '', capacity: parseInt(document.getElementById('grp-cap')?.value) || 0 }); saveDB(); renderGroups(); popAllSelects(); closeM('modal-grp'); toast('تم إضافة المجموعة', 'success'); }
+
+        // ============================================================ SETTINGS ============================================================
+        function saveSettings() { db.settings.defaultFee = parseInt(document.getElementById('cfg-fee')?.value) || 500; db.settings.currency = document.getElementById('cfg-cur')?.value || 'جنيه'; saveDB(); toast('تم حفظ الإعدادات', 'success'); }
+
+        // ============================================================ BACKUP ============================================================
+        function exportBackup() { const data = JSON.stringify(db); const blob = new Blob([data], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'codeverast-backup.json'; document.body.appendChild(a); a.click(); setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100); toast('تم تنزيل النسخة الاحتياطية', 'success'); }
+        function importBackup(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (evt) { try { const data = JSON.parse(evt.target.result); db = data; saveDB(); renderAll(); toast('تم استعادة البيانات بنجاح', 'success'); } catch (err) { toast('فشل في استعادة البيانات', 'error'); } }; reader.readAsText(file); }
+        function resetAll() { showConfirm('مسح كل البيانات', 'سيتم حذف جميع بيانات النظام ولا يمكن التراجع. هل أنت متأكد؟', () => { localStorage.removeItem('csv4'); seedData(); renderAll(); toast('تم مسح كل البيانات', 'info'); doLogout(); }); }
+        function exportRep(type) { toast('جاري تصدير...', 'info'); setTimeout(() => { const d = new Date(); const stamp = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; let csv = ''; if (type === 'fees') { const mo = document.getElementById('fee-m')?.value || d.getMonth()+1, yr = document.getElementById('fee-y')?.value || d.getFullYear(); const key = `${yr}-${mo}`; const fm = db.fees[key] || {}; csv = `الطالب,ID,الصف,المجموعة,المبلغ,الحالة,تاريخ الدفع,ملاحظة\n`; db.students.forEach(s => { const cls = db.classes.find(c => c.id === s.classId); const grp = db.groups.find(g => g.id === s.groupId); const f = fm[s.id] || {}; csv += `"${s.name}",${s.id},"${cls?.name || ''}","${grp?.name || ''}",${f.amount || s.fee || 500},${f.paid ? 'مدفوع' : 'غير مدفوع'},${f.date || ''},"${f.note || ''}"\n`; }); } else { csv = 'لا توجد بيانات\n'; } const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `report_${type}_${stamp}.csv`; a.click(); URL.revokeObjectURL(url); toast('تم التصدير', 'success'); }, 100); }
 
         // ============================================================ UTILITIES ============================================================
         function openM(id) { document.getElementById(id).classList.add('open'); }
@@ -4679,48 +4736,16 @@
         }
         function closeConfirm() { document.getElementById('confirm-d').classList.remove('open'); }
 
-        // ============================================================ BACKUP ============================================================
-        function exportBackup() {
-            const data = JSON.stringify(db);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'codeverast-backup.json';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-            toast('تم تنزيل النسخة الاحتياطية', 'success');
+        // ========== Global Search ==========
+        function globalSearch(q) {
+            const dd = document.getElementById('s-dd');
+            if (!q.trim()) { dd.style.display = 'none'; return; }
+            const res = db.students.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || s.id.toLowerCase().includes(q.toLowerCase()));
+            if (!res.length) { dd.style.display = 'none'; return; }
+            dd.style.display = 'block';
+            dd.innerHTML = res.slice(0, 5).map(s => `<div class="sri" onclick="openProf('${s.id}');dd.style.display='none';document.getElementById('g-search').value=''"><div class="s-ava">${s.name.charAt(0)}</div><div><div style="font-weight:700">${s.name}</div><div style="font-size:.68rem;color:var(--text-muted)">${s.id}</div></div></div>`).join('');
         }
-        function importBackup(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (evt) {
-                try {
-                    const data = JSON.parse(evt.target.result);
-                    db = data;
-                    saveDB();
-                    renderAll();
-                    toast('تم استعادة البيانات بنجاح', 'success');
-                } catch (err) {
-                    toast('فشل في استعادة البيانات', 'error');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        // ============================================================ RESET ============================================================
-        function resetAll() {
-            showConfirm('مسح كل البيانات', 'سيتم حذف جميع بيانات النظام ولا يمكن التراجع. هل أنت متأكد؟', () => {
-                localStorage.removeItem('csv4');
-                seedData();
-                renderAll();
-                toast('تم مسح كل البيانات', 'info');
-                doLogout();
-            });
-        }
+        document.addEventListener('click', (e) => { if (!e.target.closest('.tb-search')) document.getElementById('s-dd').style.display = 'none'; });
     </script>
 </body>
-
 </html>
